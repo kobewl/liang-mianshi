@@ -1,0 +1,71 @@
+package com.mianshi.backend.controller;
+
+import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mianshi.backend.dto.QuestionBankDTO;
+import com.mianshi.backend.entity.QuestionBank;
+import com.mianshi.backend.service.QuestionBankService;
+import com.mianshi.backend.vo.ApiResponse;
+import com.mianshi.backend.vo.QuestionBankVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * 题库控制器
+ */
+@Tag(name = "题库管理", description = "题库相关接口")
+@RestController
+@RequestMapping("/question-bank")
+@RequiredArgsConstructor
+public class QuestionBankController {
+
+    private final QuestionBankService questionBankService;
+
+    @Operation(summary = "创建题库", description = "创建新题库")
+    @PostMapping
+    public ApiResponse<Long> createQuestionBank(@Valid @RequestBody QuestionBankDTO questionBankDTO) {
+        QuestionBank questionBank = BeanUtil.copyProperties(questionBankDTO, QuestionBank.class);
+        questionBankService.save(questionBank);
+        return ApiResponse.success(questionBank.getId());
+    }
+
+    @Operation(summary = "更新题库", description = "根据 ID 更新题库信息")
+    @PutMapping("/{id}")
+    public ApiResponse<Boolean> updateQuestionBank(
+            @Parameter(description = "题库ID") @PathVariable Long id,
+            @Valid @RequestBody QuestionBankDTO questionBankDTO) {
+        QuestionBank questionBank = BeanUtil.copyProperties(questionBankDTO, QuestionBank.class);
+        questionBank.setId(id);
+        return ApiResponse.success(questionBankService.updateById(questionBank));
+    }
+
+    @Operation(summary = "删除题库", description = "根据 ID 删除题库")
+    @DeleteMapping("/{id}")
+    public ApiResponse<Boolean> deleteQuestionBank(@Parameter(description = "题库ID") @PathVariable Long id) {
+        return ApiResponse.success(questionBankService.removeById(id));
+    }
+
+    @Operation(summary = "获取题库详情", description = "根据 ID 获取题库详情")
+    @GetMapping("/{id}")
+    public ApiResponse<QuestionBankVO> getQuestionBank(@Parameter(description = "题库ID") @PathVariable Long id) {
+        QuestionBank questionBank = questionBankService.getById(id);
+        QuestionBankVO questionBankVO = BeanUtil.copyProperties(questionBank, QuestionBankVO.class);
+        return ApiResponse.success(questionBankVO);
+    }
+
+    @Operation(summary = "分页查询题库", description = "分页查询题库列表")
+    @GetMapping("/page")
+    public ApiResponse<Page<QuestionBankVO>> pageQuestionBanks(
+            @Parameter(description = "当前页") @RequestParam(defaultValue = "1") Long current,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size) {
+        Page<QuestionBank> page = questionBankService.page(new Page<>(current, size), new QueryWrapper<>());
+        Page<QuestionBankVO> voPage = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
+        voPage.setRecords(BeanUtil.copyToList(page.getRecords(), QuestionBankVO.class));
+        return ApiResponse.success(voPage);
+    }
+}
