@@ -1,4 +1,4 @@
-package com.mianshi.backend.vo;
+package com.mianshi.backend.model.vo;
 
 import lombok.Data;
 

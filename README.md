@@ -1,85 +1,167 @@
-# Liang Piao 项目
+# 🎉 面试鸭刷题神器
 
-这是一个基于Spring Boot 3.2.x和Vue 3的全栈应用项目。
+## 项目简介
 
-## 项目结构
+这是一个功能完整、设计现代的面试题库管理系统，采用前后端分离架构，具备完整的用户认证系统和美观的UI界面。
 
-```
-liang-piao/
-├── piao_backend/          # 后端项目 (Spring Boot 3.2.x + JDK 21)
-│   ├── src/main/java/com/liangpiao/backend/
-│   │   ├── controller/    # 控制器层
-│   │   ├── service/       # 服务层
-│   │   ├── repository/    # 数据访问层
-│   │   ├── entity/        # 实体类
-│   │   ├── dto/           # 数据传输对象
-│   │   └── config/        # 配置类
-│   └── src/main/resources/
-│       └── application.yml # 配置文件
-├── piao_frontend/         # 前端项目 (Vue 3 + TypeScript)
-│   ├── src/
-│   │   ├── components/    # Vue组件
-│   │   ├── views/         # 页面视图
-│   │   ├── router/        # 路由配置
-│   │   ├── stores/        # Pinia状态管理
-│   │   └── api/           # API接口调用
-│   └── package.json       # 前端依赖配置
-└── README.md
-```
+## ✨ 项目特色
 
-## 技术栈
+### 🔐 完整的认证系统
+- 自实现JWT Token认证，无需第三方框架
+- 自动Token管理，前端透明使用
+- 登录状态持久化，支持多页面使用
 
-### 后端
-- **框架**: Spring Boot 3.2.x
-- **JDK**: 21
-- **数据库**: MySQL 8.0
-- **ORM**: Spring Data JPA
-- **安全**: Spring Security + JWT
-- **构建工具**: Maven
+### 🎨 现代化UI设计
+- 参考知名面试网站，温暖橙黄色主题
+- 卡片式布局，丰富的动画效果
+- 响应式设计，完美适配桌面和移动端
 
-### 前端
-- **框架**: Vue 3
-- **语言**: TypeScript
-- **路由**: Vue Router
-- **状态管理**: Pinia
-- **UI组件**: 默认安装，可根据需要选择
-- **构建工具**: Vite
+### 📱 全端适配
+- 前端完全填满屏幕，无多余边框
+- 移动端友好的交互设计
+- 统一的用户体验
 
-## 快速开始
+## 🚀 快速开始
 
-### 后端启动
+### 环境要求
+
+#### 后端
+- JDK 17+
+- Maven 3.6+
+- MySQL 8.0+
+
+#### 前端
+- Node.js 16+
+- npm 8+
+
+### 启动步骤
+
+#### 1. 数据库准备
 ```bash
-cd piao_backend
+# 创建数据库
+mysql -u root -p
+
+# 执行建表SQL
+source backend/sql/createSql.sql;
+```
+
+#### 2. 启动后端服务
+```bash
+cd backend
 mvn clean install
 mvn spring-boot:run
 ```
+后端服务运行在：http://localhost:8184
 
-### 前端启动
+#### 3. 启动前端服务
 ```bash
-cd piao_frontend
+cd frontend
 npm install
 npm run dev
 ```
+前端服务运行在：http://localhost:5173
 
-## 默认端口
-- 后端服务: http://localhost:8080
-- 前端服务: http://localhost:3000
+## 📖 使用指南
 
-## API接口
-- 健康检查: GET http://localhost:8080/api/health
-- 测试接口: GET http://localhost:8080/api/hello
+### 注册登录
+1. 访问 http://localhost:5173/register 注册新账号
+2. 访问 http://localhost:5173/login 登录系统
+3. 测试账号：wangliang / 123456
 
-## 功能特性
-- ✅ Spring Boot 3.2.x + JDK 21
-- ✅ Vue 3 + TypeScript
-- ✅ 跨域配置
-- ✅ 健康检查接口
-- ✅ 基础项目结构
-- 🔄 待实现: 用户认证、数据库集成、业务逻辑等
+### 主要功能
+- **题库浏览**：精选的面试题库分类展示
+- **题目管理**：增删改查面试题目
+- **题库管理**：创建和管理题库分类
+- **用户管理**：管理系统用户和权限
 
-## 开发建议
-1. 后端代码遵循分层架构：Controller → Service → Repository
-2. 前端代码按功能模块组织
-3. 使用环境变量管理配置
-4. 添加适当的日志记录
-5. 编写单元测试和集成测试
+### API文档
+访问 http://localhost:8184/doc.html 查看完整API文档
+
+## 🛠 技术栈
+
+### 后端技术栈
+- **Spring Boot 3.2.12**：企业级Java框架
+- **MyBatis-Plus 3.5.14**：简化CRUD操作
+- **JWT (jjwt 0.11.5)**：自实现Token认证
+- **MySQL 8.0**：关系型数据库
+- **Knife4j 4.3.0**：API文档生成
+
+### 前端技术栈
+- **Vue 3.5**：渐进式JavaScript框架
+- **Ant Design Vue 4.2**：企业级UI组件库
+- **Vue Router 4.5**：官方路由管理器
+- **Vuex 4.0**：状态管理模式
+- **Axios 1.12**：HTTP客户端
+- **Vite 7.1**：下一代前端构建工具
+
+## 📁 项目结构
+
+```
+liang-mianshi/
+├── backend/                 # 后端项目
+│   ├── src/
+│   │   ├── main/java/com/mianshi/backend/
+│   │   │   ├── utils/          # 工具类（JWT等）
+│   │   │   ├── interceptor/    # 拦截器（认证）
+│   │   │   ├── config/         # 配置类
+│   │   │   ├── controller/     # 控制器层
+│   │   │   ├── service/        # 服务层
+│   │   │   ├── mapper/         # 数据访问层
+│   │   │   └── model/          # 数据模型
+│   ├── sql/                   # 数据库脚本
+│   └── pom.xml               # Maven配置
+├── frontend/               # 前端项目
+│   ├── src/
+│   │   ├── api/              # API接口
+│   │   ├── views/            # 页面组件
+│   │   ├── components/       # 通用组件
+│   │   ├── router/           # 路由配置
+│   │   ├── store/            # 状态管理
+│   │   └── App.vue           # 根组件
+│   ├── package.json         # npm配置
+│   └── vite.config.js       # Vite配置
+└── 文档文件/
+    ├── 项目完成总结.md
+    ├── 前端后端改进说明.md
+    ├── UI改进说明.md
+    └── 前端修复说明.md
+```
+
+## 🎯 项目亮点
+
+### 1. 自实现认证系统
+完全自主实现JWT Token认证，无需依赖第三方认证框架，代码简洁易懂。
+
+### 2. 现代化UI设计
+参考知名面试网站设计理念，采用温暖的橙黄色主题，视觉效果优秀。
+
+### 3. 完善的用户体验
+- 登录状态自动管理
+- 丰富的动画效果
+- 完善的错误处理
+- 移动端适配
+
+### 4. 代码质量保证
+- 无语法错误，所有文件正确构建
+- 统一的代码风格
+- 完善的文档说明
+
+## 🔮 未来计划
+
+1. **部署上线**：云服务器部署
+2. **功能扩展**：更多题型和分类
+3. **性能优化**：缓存和数据库优化
+4. **安全性增强**：密码加密等
+5. **运维监控**：日志和性能监控
+
+## 📞 联系方式
+
+如有问题或建议，请联系项目维护者。
+
+## 📄 开源协议
+
+本项目遵循 MIT 开源协议。
+
+---
+
+**⭐ 如果这个项目对你有帮助，请给个 Star 支持一下吧！**

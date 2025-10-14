@@ -1,13 +1,12 @@
 package com.mianshi.backend.controller;
 
-import cn.hutool.core.bean.BeanUtil;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.mianshi.backend.dto.QuestionDTO;
-import com.mianshi.backend.entity.Question;
+import com.mianshi.backend.model.dto.Question.QuestionAddDTO;
+import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
+import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
+import com.mianshi.backend.model.vo.Question.QuestionVO;
 import com.mianshi.backend.service.QuestionService;
-import com.mianshi.backend.vo.ApiResponse;
-import com.mianshi.backend.vo.QuestionVO;
+import com.mianshi.backend.model.vo.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,20 +27,16 @@ public class QuestionController {
 
     @Operation(summary = "创建题目", description = "创建新题目")
     @PostMapping
-    public ApiResponse<Long> createQuestion(@Valid @RequestBody QuestionDTO questionDTO) {
-        Question question = BeanUtil.copyProperties(questionDTO, Question.class);
-        questionService.save(question);
-        return ApiResponse.success(question.getId());
+    public ApiResponse<Long> createQuestion(@Valid @RequestBody QuestionAddDTO questionAddDTO) {
+        return ApiResponse.success(questionService.addQuestion(questionAddDTO));
     }
 
     @Operation(summary = "更新题目", description = "根据 ID 更新题目信息")
     @PutMapping("/{id}")
     public ApiResponse<Boolean> updateQuestion(
             @Parameter(description = "题目ID") @PathVariable Long id,
-            @Valid @RequestBody QuestionDTO questionDTO) {
-        Question question = BeanUtil.copyProperties(questionDTO, Question.class);
-        question.setId(id);
-        return ApiResponse.success(questionService.updateById(question));
+            @Valid @RequestBody QuestionUpdateDTO questionUpdateDTO) {
+        return ApiResponse.success(questionService.updateQuestion(id, questionUpdateDTO));
     }
 
     @Operation(summary = "删除题目", description = "根据 ID 删除题目")
@@ -53,19 +48,23 @@ public class QuestionController {
     @Operation(summary = "获取题目详情", description = "根据 ID 获取题目详情")
     @GetMapping("/{id}")
     public ApiResponse<QuestionVO> getQuestion(@Parameter(description = "题目ID") @PathVariable Long id) {
-        Question question = questionService.getById(id);
-        QuestionVO questionVO = BeanUtil.copyProperties(question, QuestionVO.class);
-        return ApiResponse.success(questionVO);
+        return ApiResponse.success(questionService.getQuestionById(id));
     }
 
     @Operation(summary = "分页查询题目", description = "分页查询题目列表")
     @GetMapping("/page")
     public ApiResponse<Page<QuestionVO>> pageQuestions(
             @Parameter(description = "当前页") @RequestParam(defaultValue = "1") Long current,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size) {
-        Page<Question> page = questionService.page(new Page<>(current, size), new QueryWrapper<>());
-        Page<QuestionVO> voPage = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
-        voPage.setRecords(BeanUtil.copyToList(page.getRecords(), QuestionVO.class));
-        return ApiResponse.success(voPage);
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "标题") @RequestParam(required = false) String title,
+            @Parameter(description = "标签列表") @RequestParam(required = false) String tags,
+            @Parameter(description = "创建用户ID") @RequestParam(required = false) Long userId) {
+        QuestionQueryDTO queryDTO = new QuestionQueryDTO();
+        queryDTO.setCurrent(current.intValue());
+        queryDTO.setSize(size.intValue());
+        queryDTO.setTitle(title);
+        queryDTO.setTags(tags);
+        queryDTO.setUserId(userId);
+        return ApiResponse.success(questionService.pageQuestions(queryDTO));
     }
 }

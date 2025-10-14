@@ -7,15 +7,15 @@ spring:
   application:
     name: backend
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/liang_mianshi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://14.103.196.157:3306/liang_mianshi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
-    password: root
+    password:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 # MyBatis-Plus 配置
 mybatis-plus:
   configuration:
-    map-underscore-to-camel-case: true
+    map-underscore-to-camel-case: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
@@ -52,7 +52,7 @@ jwt:
 
 # 跨域配置
 cors:
-  allowed-origins: http://localhost:3000
+  allowed-origins: http://localhost:5173
   allowed-methods: GET,POST,PUT,DELETE,OPTIONS
   allowed-headers: "*"
   allow-credentials: true

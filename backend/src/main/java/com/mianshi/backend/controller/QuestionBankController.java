@@ -1,13 +1,12 @@
 package com.mianshi.backend.controller;
 
-import cn.hutool.core.bean.BeanUtil;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.mianshi.backend.dto.QuestionBankDTO;
-import com.mianshi.backend.entity.QuestionBank;
+import com.mianshi.backend.model.dto.QuestionBank.QuestionBankAddDTO;
+import com.mianshi.backend.model.dto.QuestionBank.QuestionBankUpdateDTO;
+import com.mianshi.backend.model.dto.QuestionBank.QuestionBankQueryDTO;
+import com.mianshi.backend.model.vo.QuestionBank.QuestionBankVO;
 import com.mianshi.backend.service.QuestionBankService;
-import com.mianshi.backend.vo.ApiResponse;
-import com.mianshi.backend.vo.QuestionBankVO;
+import com.mianshi.backend.model.vo.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,20 +27,16 @@ public class QuestionBankController {
 
     @Operation(summary = "创建题库", description = "创建新题库")
     @PostMapping
-    public ApiResponse<Long> createQuestionBank(@Valid @RequestBody QuestionBankDTO questionBankDTO) {
-        QuestionBank questionBank = BeanUtil.copyProperties(questionBankDTO, QuestionBank.class);
-        questionBankService.save(questionBank);
-        return ApiResponse.success(questionBank.getId());
+    public ApiResponse<Long> createQuestionBank(@Valid @RequestBody QuestionBankAddDTO questionBankAddDTO) {
+        return ApiResponse.success(questionBankService.addQuestionBank(questionBankAddDTO));
     }
 
     @Operation(summary = "更新题库", description = "根据 ID 更新题库信息")
     @PutMapping("/{id}")
     public ApiResponse<Boolean> updateQuestionBank(
             @Parameter(description = "题库ID") @PathVariable Long id,
-            @Valid @RequestBody QuestionBankDTO questionBankDTO) {
-        QuestionBank questionBank = BeanUtil.copyProperties(questionBankDTO, QuestionBank.class);
-        questionBank.setId(id);
-        return ApiResponse.success(questionBankService.updateById(questionBank));
+            @Valid @RequestBody QuestionBankUpdateDTO questionBankUpdateDTO) {
+        return ApiResponse.success(questionBankService.updateQuestionBank(id, questionBankUpdateDTO));
     }
 
     @Operation(summary = "删除题库", description = "根据 ID 删除题库")
@@ -53,19 +48,21 @@ public class QuestionBankController {
     @Operation(summary = "获取题库详情", description = "根据 ID 获取题库详情")
     @GetMapping("/{id}")
     public ApiResponse<QuestionBankVO> getQuestionBank(@Parameter(description = "题库ID") @PathVariable Long id) {
-        QuestionBank questionBank = questionBankService.getById(id);
-        QuestionBankVO questionBankVO = BeanUtil.copyProperties(questionBank, QuestionBankVO.class);
-        return ApiResponse.success(questionBankVO);
+        return ApiResponse.success(questionBankService.getQuestionBankById(id));
     }
 
     @Operation(summary = "分页查询题库", description = "分页查询题库列表")
     @GetMapping("/page")
     public ApiResponse<Page<QuestionBankVO>> pageQuestionBanks(
             @Parameter(description = "当前页") @RequestParam(defaultValue = "1") Long current,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size) {
-        Page<QuestionBank> page = questionBankService.page(new Page<>(current, size), new QueryWrapper<>());
-        Page<QuestionBankVO> voPage = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
-        voPage.setRecords(BeanUtil.copyToList(page.getRecords(), QuestionBankVO.class));
-        return ApiResponse.success(voPage);
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "标题") @RequestParam(required = false) String title,
+            @Parameter(description = "创建用户ID") @RequestParam(required = false) Long userId) {
+        QuestionBankQueryDTO queryDTO = new QuestionBankQueryDTO();
+        queryDTO.setCurrent(current.intValue());
+        queryDTO.setSize(size.intValue());
+        queryDTO.setTitle(title);
+        queryDTO.setUserId(userId);
+        return ApiResponse.success(questionBankService.pageQuestionBanks(queryDTO));
     }
 }

@@ -1,7 +1,7 @@
 package com.mianshi.backend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.mianshi.backend.entity.User;
+import com.mianshi.backend.model.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 
 /**

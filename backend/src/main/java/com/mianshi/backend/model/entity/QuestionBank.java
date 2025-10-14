@@ -1,4 +1,4 @@
-package com.mianshi.backend.entity;
+package com.mianshi.backend.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
@@ -18,7 +18,7 @@ public class QuestionBank implements Serializable {
     /**
      * id
      */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /**
