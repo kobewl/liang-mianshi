@@ -9,8 +9,16 @@ spring:
   datasource:
     url: jdbc:mysql://14.103.196.157:3306/liang_mianshi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
-    password: kobe200800
+    password:
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      # password: 123456
+      connect-timeout: 1000
 
 # MyBatis-Plus 配置
 mybatis-plus:

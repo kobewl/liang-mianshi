@@ -11,7 +11,7 @@
         <nav class="nav-menu">
           <a-button type="link" @click="$router.push('/')">首页</a-button>
           <a-button type="link" v-if="isAdmin" @click="$router.push('/questions')">题目管理</a-button>
-          <a-button type="primary">题库管理</a-button>
+          <a-button type="primary">题库详情</a-button>
           <a-button type="link" v-if="isAdmin" @click="$router.push('/users')">用户管理</a-button>
         </nav>
 
@@ -30,7 +30,7 @@
         <!-- 题库列表视图 -->
         <div v-if="!isDetailView">
           <div class="page-header">
-            <h2 class="page-title">题库管理</h2>
+            <h2 class="page-title">题库详情</h2>
             <!-- 管理员可以看到添加题库按钮，普通用户看不到 -->
             <a-button v-if="isAdmin" type="primary" @click="$router.push('/question-banks/create')" class="add-btn">
               <span class="btn-icon">➕</span>
@@ -75,20 +75,18 @@
 
         <!-- 题库详情视图 -->
         <div v-else-if="currentQuestionBank">
-          <div class="page-header">
-            <a-button type="link" @click="backToList" class="back-btn">
-              <span class="btn-icon">←</span>
-              返回列表
-            </a-button>
-            <h2 class="page-title">题库详情</h2>
-            <div></div>
-          </div>
 
           <div class="detail-container">
             <div class="detail-header">
               <div class="detail-picture">
                 <img v-if="currentQuestionBank.picture" :src="currentQuestionBank.picture" alt="题库图片" />
                 <div v-else class="no-picture">暂无封面</div>
+              </div>
+              <div class="page-header">
+                <a-button type="link" @click="backToList" class="back-btn">
+                  <span class="btn-icon">←</span>
+                  返回列表
+                </a-button>
               </div>
               <div class="detail-info">
                 <h2 class="detail-title">{{ currentQuestionBank.title }}</h2>

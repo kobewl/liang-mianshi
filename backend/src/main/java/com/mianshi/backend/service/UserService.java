@@ -55,4 +55,20 @@ public interface UserService extends IService<User> {
      * @return 用户登录VO
      */
     UserLoginVO login(UserLoginDTO userLoginDTO);
+
+    /**
+     * 用户登出
+     *
+     * @param token 用户登录token
+     * @return 是否成功
+     */
+    Boolean logout(String token);
+
+    /**
+     * 添加用户签到记录
+     *
+     * @param userId 用户ID
+     * @return 是否成功
+     */
+    Boolean addUserSignIn(Long userId);
 }

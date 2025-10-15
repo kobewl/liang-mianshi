@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.mianshi.backend.constants.RedissonConstants;
 import com.mianshi.backend.model.entity.User;
 import com.mianshi.backend.model.dto.user.UserAddDTO;
 import com.mianshi.backend.model.dto.user.UserUpdateDTO;
@@ -15,14 +16,23 @@ import com.mianshi.backend.mapper.UserMapper;
 import com.mianshi.backend.service.UserService;
 import com.mianshi.backend.utils.JwtUtils;
 import com.mianshi.backend.utils.PasswordUtils;
+import jakarta.annotation.Resource;
+import org.redisson.api.RBitSet;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
 
 /**
  * 用户服务实现
  */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+
+    @Resource
+    private RedissonClient redissonClient;
+
 
     @Override
     public Long addUser(UserAddDTO userAddDTO) {
@@ -181,5 +191,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         UserLoginVO userLoginVO = BeanUtil.copyProperties(user, UserLoginVO.class);
         userLoginVO.setToken(token);
         return userLoginVO;
+    }
+
+    @Override
+    public Boolean logout(String token) {
+        return null;
+    }
+
+    /**
+     * 添加用户的
+     *
+     * @param userId 用户ID
+     * @return
+     */
+    @Override
+    public Boolean addUserSignIn(Long userId) {
+        LocalDateTime nowData = LocalDateTime.now();
+        String key = RedissonConstants.getUserSignInRedisKey(nowData.getYear(), userId);
+        // 获取 Reids 的 BitMap
+        RBitSet signInBitSet = redissonClient.getBitSet(key);
+        // 获取当前日期是今年的第几天，作为偏移量（从 0 开始计数）
+        int offset = nowData.getDayOfYear() - 1;
+        // 查询当天有没有签到
+        if (!signInBitSet.get(offset)) {
+            // 没有签到，则设置当天的位为 1
+            signInBitSet.set(offset, true);
+            return true;
+        }
+        return true;
     }
 }

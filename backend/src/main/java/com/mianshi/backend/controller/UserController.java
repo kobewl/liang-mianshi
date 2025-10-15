@@ -12,6 +12,8 @@ import com.mianshi.backend.model.vo.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -89,4 +91,22 @@ public class UserController {
         // 如果需要实现Token黑名单，可以在这里添加相关逻辑
         return ApiResponse.success(true);
     }
+
+    /**
+     * 新增用户签到
+     *
+     * @param request
+     * @return boolean 是否签到
+     */
+    @Operation(summary = "新增用户签到", description = "新增用户签到")
+    @PostMapping("/add/sign_in")
+    public ApiResponse<Boolean> addSignIn(HttpServletRequest request) {
+
+        Long userId = (Long) request.getAttribute("userId");
+        if(userId == null) {
+            return ApiResponse.error("必须登录才能签到");
+        }
+        return ApiResponse.success(userService.addUserSignIn(userId));
+    }
+
 }

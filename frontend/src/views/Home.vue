@@ -15,7 +15,6 @@
           <a-button type="link">26届秋招热题</a-button>
           <a-button type="link">真实面经</a-button>
           <a-button type="link" v-if="isAdmin" @click="$router.push('/questions')">题目管理</a-button>
-          <a-button type="link" v-if="isAdmin" @click="$router.push('/question-banks')">题库管理</a-button>
         </nav>
         
         <div class="header-right">
@@ -288,7 +287,7 @@ export default {
 .header-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 12px 24px;
+  padding: 8px 24px;
   display: flex;
   align-items: center;
   gap: 32px;
@@ -384,8 +383,8 @@ export default {
 /* 分类区域 */
 .category-section {
   background: transparent;
-  padding: 24px;
-  margin-top: -20px;
+  padding: 16px 24px 12px;
+  margin-top: 0;
   width: 100%;
 }
 
@@ -394,14 +393,14 @@ export default {
   margin: 0 auto;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
-  padding: 24px;
+  padding: 16px 20px;
   backdrop-filter: blur(10px);
 }
 
 .category-header {
   display: flex;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .tab-btn {
