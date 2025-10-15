@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+
 /**
  * 认证拦截器
  */
@@ -16,7 +17,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-            @NonNull Object handler) throws Exception {
+                             @NonNull Object handler) throws Exception {
         // 放行 OPTIONS 请求
         if ("OPTIONS".equals(request.getMethod())) {
             return true;

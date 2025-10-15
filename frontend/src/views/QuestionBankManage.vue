@@ -37,6 +37,10 @@
         
         <a-table :columns="columns" :data-source="questionBanks" :loading="loading" row-key="id">
           <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'picture'">
+              <img v-if="record.picture" :src="record.picture" style="width: 50px; height: 50px;" />
+              <span v-else>无图片</span>
+            </template>
             <template v-if="column.key === 'action'">
               <a-space>
                 <a-button type="link" size="small" @click="editQuestionBank(record)">编辑</a-button>
@@ -74,21 +78,14 @@
       ref="formRef"
       layout="vertical"
     >
-      <a-form-item label="题库名称" name="bankName">
-        <a-input v-model:value="questionBankForm.bankName" placeholder="请输入题库名称" />
+      <a-form-item label="题库标题" name="title">
+        <a-input v-model:value="questionBankForm.title" placeholder="请输入题库标题" />
       </a-form-item>
       <a-form-item label="题库描述" name="description">
         <a-textarea v-model:value="questionBankForm.description" :rows="4" placeholder="请输入题库描述" />
       </a-form-item>
-      <a-form-item label="题库类型" name="bankType">
-        <a-select v-model:value="questionBankForm.bankType" placeholder="请选择题库类型">
-          <a-select-option value="编程">编程</a-select-option>
-          <a-select-option value="算法">算法</a-select-option>
-          <a-select-option value="数据库">数据库</a-select-option>
-          <a-select-option value="操作系统">操作系统</a-select-option>
-          <a-select-option value="网络">网络</a-select-option>
-          <a-select-option value="综合">综合</a-select-option>
-        </a-select>
+      <a-form-item label="题库图片" name="picture">
+        <a-input v-model:value="questionBankForm.picture" placeholder="请输入题库图片URL" />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -99,7 +96,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import { getQuestionBankList, addQuestionBank, updateQuestionBank, deleteQuestionBank as deleteQuestionBankApi } from '../api';
+import { getQuestionBankList, addQuestionBank, updateQuestionBank, deleteQuestionBank } from '../api/questionBank';
 
 export default {
   name: 'QuestionBankManage',
@@ -120,15 +117,21 @@ export default {
         key: 'id',
       },
       {
-        title: '题库名称',
-        dataIndex: 'name',
-        key: 'name',
+        title: '题库标题',
+        dataIndex: 'title',
+        key: 'title',
       },
       {
         title: '描述',
         dataIndex: 'description',
         key: 'description',
         ellipsis: true,
+      },
+      {
+        title: '图片',
+        dataIndex: 'picture',
+        key: 'picture',
+        width: 100,
       },
       {
         title: '创建时间',
@@ -143,16 +146,18 @@ export default {
 
     const questionBankForm = reactive({
       id: null,
-      name: '',
-      description: ''
+      title: '',
+      description: '',
+      picture: '',
+      userId: null
     });
 
     const rules = {
-      name: [
-        { required: true, message: '请输入题库名称', trigger: 'blur' }
+      title: [
+        { required: true, message: '请输入题库标题', trigger: 'blur' }
       ],
       description: [
-        { required: true, message: '请输入题库描述', trigger: 'blur' }
+        { required: false, message: '请输入题库描述', trigger: 'blur' }
       ]
     };
 
@@ -192,7 +197,7 @@ export default {
 
     const handleDeleteQuestionBank = async (id) => {
       try {
-        const response = await deleteQuestionBankApi(id);
+        const response = await deleteQuestionBank(id);
         
         if (response.code === 200) {
           message.success('删除成功');
@@ -211,13 +216,18 @@ export default {
       try {
         await formRef.value.validate();
         
+        const data = {
+          ...questionBankForm,
+          userId: questionBankForm.userId || store.state.user.userId
+        };
+        
         let response;
         if (isEdit.value) {
           // 编辑题库
-          response = await updateQuestionBank(questionBankForm);
+          response = await updateQuestionBank(data);
         } else {
           // 添加题库
-          response = await addQuestionBank(questionBankForm);
+          response = await addQuestionBank(data);
         }
         
         if (response.code === 200) {
@@ -241,8 +251,10 @@ export default {
     const resetForm = () => {
       Object.assign(questionBankForm, {
         id: null,
-        name: '',
-        description: ''
+        title: '',
+        description: '',
+        picture: '',
+        userId: null
       });
     };
 
@@ -255,6 +267,10 @@ export default {
 
     onMounted(() => {
       fetchQuestionBanks();
+      // 设置当前用户ID
+      if (store.state.user.userId) {
+        questionBankForm.userId = store.state.user.userId;
+      }
     });
 
     return {

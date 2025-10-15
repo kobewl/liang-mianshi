@@ -92,20 +92,8 @@
       <a-form-item label="题目答案" name="answer">
         <a-textarea v-model:value="questionForm.answer" :rows="3" placeholder="请输入题目答案" />
       </a-form-item>
-      <a-form-item label="难度" name="difficulty">
-        <a-select v-model:value="questionForm.difficulty" placeholder="请选择难度">
-          <a-select-option value="简单">简单</a-select-option>
-          <a-select-option value="中等">中等</a-select-option>
-          <a-select-option value="困难">困难</a-select-option>
-        </a-select>
-      </a-form-item>
-      <a-form-item label="题目类型" name="type">
-        <a-select v-model:value="questionForm.type" placeholder="请选择题目类型">
-          <a-select-option value="单选题">单选题</a-select-option>
-          <a-select-option value="多选题">多选题</a-select-option>
-          <a-select-option value="编程题">编程题</a-select-option>
-          <a-select-option value="问答题">问答题</a-select-option>
-        </a-select>
+      <a-form-item label="标签" name="tags">
+        <a-input v-model:value="questionForm.tags" placeholder="请输入标签，多个标签用逗号分隔" />
       </a-form-item>
     </a-form>
   </a-modal>
@@ -116,7 +104,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import { getQuestionList, addQuestion, updateQuestion, deleteQuestion as deleteQuestionApi } from '../api';
+import { getQuestionList, addQuestion, updateQuestion, deleteQuestion } from '../api/question';
 
 export default {
   name: 'QuestionManage',
@@ -154,11 +142,6 @@ export default {
         ellipsis: true,
       },
       {
-        title: '难度',
-        dataIndex: 'difficulty',
-        key: 'difficulty',
-      },
-      {
         title: '标签',
         dataIndex: 'tags',
         key: 'tags',
@@ -179,9 +162,8 @@ export default {
       title: '',
       content: '',
       answer: '',
-      difficulty: '简单',
       tags: '',
-      questionBankId: null
+      userId: null
     });
 
     const rules = {
@@ -189,13 +171,10 @@ export default {
         { required: true, message: '请输入题目标题', trigger: 'blur' }
       ],
       content: [
-        { required: true, message: '请输入题目内容', trigger: 'blur' }
+        { required: false, message: '请输入题目内容', trigger: 'blur' }
       ],
       answer: [
-        { required: true, message: '请输入答案', trigger: 'blur' }
-      ],
-      difficulty: [
-        { required: true, message: '请选择难度', trigger: 'change' }
+        { required: false, message: '请输入答案', trigger: 'blur' }
       ]
     };
 
@@ -230,7 +209,13 @@ export default {
     const editQuestion = (record) => {
       isEdit.value = true;
       modalVisible.value = true;
-      Object.assign(questionForm, record);
+      questionForm.id = record.id;
+      questionForm.title = record.title;
+      questionForm.content = record.content;
+      questionForm.answer = record.answer;
+      // 将标签数组转换为逗号分隔的字符串
+      questionForm.tags = Array.isArray(record.tags) ? record.tags.join(', ') : record.tags || '';
+      questionForm.userId = record.userId;
     };
 
     const handleDeleteQuestion = async (id) => {
@@ -254,13 +239,24 @@ export default {
       try {
         await formRef.value.validate();
         
+        // 将标签字符串转换为数组
+        const tagsArray = questionForm.tags ? questionForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+        
+        const data = {
+          title: questionForm.title,
+          content: questionForm.content,
+          answer: questionForm.answer,
+          tags: tagsArray,
+          userId: questionForm.userId || store.state.user.userId
+        };
+        
         let response;
         if (isEdit.value) {
           // 编辑题目
-          response = await updateQuestion(questionForm);
+          response = await updateQuestion(questionForm.id, data);
         } else {
           // 添加题目
-          response = await addQuestion(questionForm);
+          response = await addQuestion(data);
         }
         
         if (response.code === 200) {
@@ -287,9 +283,8 @@ export default {
         title: '',
         content: '',
         answer: '',
-        difficulty: '简单',
         tags: '',
-        questionBankId: null
+        userId: null
       });
     };
 
@@ -302,6 +297,10 @@ export default {
 
     onMounted(() => {
       fetchQuestions();
+      // 设置当前用户ID
+      if (store.state.user.userId) {
+        questionForm.userId = store.state.user.userId;
+      }
     });
 
     return {
