@@ -10,8 +10,8 @@
 
         <nav class="nav-menu">
           <a-button type="link" @click="$router.push('/')">首页</a-button>
-          <a-button type="link" @click="$router.push('/questions')">题目管理</a-button>
-          <a-button type="link" @click="$router.push('/question-banks')">题库管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/questions')">题目管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/question-banks')">题库管理</a-button>
           <a-button type="primary">用户管理</a-button>
         </nav>
 
@@ -29,7 +29,8 @@
       <div class="content-wrapper">
         <div class="page-header">
           <h2 class="page-title">用户管理</h2>
-          <a-button type="primary" @click="showAddModal" class="add-btn">
+          <!-- 管理员可以看到添加用户按钮，普通用户看不到 -->
+          <a-button v-if="isAdmin" type="primary" @click="showAddModal" class="add-btn">
             <span class="btn-icon">➕</span>
             添加用户
           </a-button>
@@ -42,7 +43,13 @@
             :data-source="users"
             :loading="loading"
             row-key="id"
-            :pagination="{ pageSize: 10, showTotal: (total) => `共 ${total} 条记录` }"
+            :pagination="{ 
+              pageSize: 10, 
+              showTotal: (total) => `共 ${total} 条记录`,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              pageSizeOptions: ['10', '20', '50', '100']
+            }"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'userRole'">
@@ -55,7 +62,7 @@
                   <a-button type="link" size="small" @click="editUser(record)">编辑</a-button>
                   <a-popconfirm
                     title="确定要删除这个用户吗？"
-                    @confirm="deleteUser(record.id)"
+                    @confirm="handleDeleteUser(record.id)"
                     ok-text="确定"
                     cancel-text="取消"
                   >
@@ -127,11 +134,6 @@ export default {
     const users = ref([]);
 
     const columns = [
-      {
-        title: 'ID',
-        dataIndex: 'id',
-        key: 'id',
-      },
       {
         title: '用户账号',
         dataIndex: 'userAccount',

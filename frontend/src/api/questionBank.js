@@ -29,3 +29,20 @@ export const updateQuestionBank = (id, data) => {
 export const searchQuestionBankByName = (bankName) => {
   return api.get('/question-bank/page', { params: { title: bankName } });
 };
+
+// 题库题目关联相关API
+
+// 创建题库题目关联
+export const addQuestionBankQuestion = (data) => {
+  return api.post('/question-bank-question', data);
+};
+
+// 删除题库题目关联
+export const deleteQuestionBankQuestion = (id) => {
+  return api.delete(`/question-bank-question/${id}`);
+};
+
+// 获取题库题目关联列表
+export const getQuestionBankQuestionList = (params) => {
+  return api.get('/question-bank-question/page', { params });
+};

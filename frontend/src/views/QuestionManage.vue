@@ -11,8 +11,8 @@
         <nav class="nav-menu">
           <a-button type="link" @click="$router.push('/')">首页</a-button>
           <a-button type="primary">题目管理</a-button>
-          <a-button type="link" @click="$router.push('/question-banks')">题库管理</a-button>
-          <a-button type="link" @click="$router.push('/users')">用户管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/question-banks')">题库管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/users')">用户管理</a-button>
         </nav>
 
         <div class="header-right">
@@ -29,7 +29,8 @@
       <div class="content-wrapper">
         <div class="page-header">
           <h2 class="page-title">题目管理</h2>
-          <a-button type="primary" @click="showAddModal" class="add-btn">
+          <!-- 管理员可以看到添加题目按钮，普通用户看不到 -->
+          <a-button v-if="isAdmin" type="primary" @click="$router.push('/questions/create')" class="add-btn">
             <span class="btn-icon">➕</span>
             添加题目
           </a-button>
@@ -42,15 +43,21 @@
             :data-source="questions"
             :loading="loading"
             row-key="id"
-            :pagination="{ pageSize: 10, showTotal: (total) => `共 ${total} 条记录` }"
+            :pagination="{ 
+              pageSize: 10, 
+              showTotal: (total) => `共 ${total} 条记录`,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              pageSizeOptions: ['10', '20', '50', '100']
+            }"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'action'">
                 <a-space>
-                  <a-button type="link" size="small" @click="editQuestion(record)">编辑</a-button>
+                  <a-button type="link" size="small" @click="$router.push(`/questions/edit/${record.id}`)">编辑</a-button>
                   <a-popconfirm
                     title="确定要删除这个题目吗？"
-                    @confirm="deleteQuestion(record.id)"
+                    @confirm="handleDeleteQuestion(record.id)"
                     ok-text="确定"
                     cancel-text="取消"
                   >
@@ -70,33 +77,6 @@
     </footer>
   </div>
 
-  <!-- 添加/编辑题目弹窗 -->
-  <a-modal
-    v-model:open="modalVisible"
-    :title="isEdit ? '编辑题目' : '添加题目'"
-    @ok="handleSubmit"
-    @cancel="handleCancel"
-  >
-    <a-form
-      :model="questionForm"
-      :rules="rules"
-      ref="formRef"
-      layout="vertical"
-    >
-      <a-form-item label="题目标题" name="title">
-        <a-input v-model:value="questionForm.title" placeholder="请输入题目标题" />
-      </a-form-item>
-      <a-form-item label="题目内容" name="content">
-        <a-textarea v-model:value="questionForm.content" :rows="4" placeholder="请输入题目内容" />
-      </a-form-item>
-      <a-form-item label="题目答案" name="answer">
-        <a-textarea v-model:value="questionForm.answer" :rows="3" placeholder="请输入题目答案" />
-      </a-form-item>
-      <a-form-item label="标签" name="tags">
-        <a-input v-model:value="questionForm.tags" placeholder="请输入标签，多个标签用逗号分隔" />
-      </a-form-item>
-    </a-form>
-  </a-modal>
 </template>
 
 <script>
@@ -115,15 +95,12 @@ export default {
     const modalVisible = ref(false);
     const isEdit = ref(false);
     const formRef = ref();
-    
+
     const questions = ref([]);
+    const contentTab = ref('edit');
+    const answerTab = ref('edit');
 
     const columns = [
-      {
-        title: 'ID',
-        dataIndex: 'id',
-        key: 'id',
-      },
       {
         title: '题目',
         dataIndex: 'title',
@@ -184,7 +161,7 @@ export default {
       try {
         const response = await getQuestionList({
           current: 1,
-          pageSize: 100
+          size: 100
         });
         
         if (response.code === 200) {
@@ -220,8 +197,8 @@ export default {
 
     const handleDeleteQuestion = async (id) => {
       try {
-        const response = await deleteQuestionApi(id);
-        
+        const response = await deleteQuestion(id);
+
         if (response.code === 200) {
           message.success('删除成功');
           // 重新获取题目列表
@@ -239,15 +216,15 @@ export default {
       try {
         await formRef.value.validate();
         
-        // 将标签字符串转换为数组
-        const tagsArray = questionForm.tags ? questionForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
-        
+        // 将标签字符串转换为逗号分隔的字符串（后端期望字符串格式）
+        const tagsString = questionForm.tags ? questionForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag).join(',') : '';
+
         const data = {
           title: questionForm.title,
           content: questionForm.content,
           answer: questionForm.answer,
-          tags: tagsArray,
-          userId: questionForm.userId || store.state.user.userId
+          tags: tagsString,
+          userId: questionForm.userId || (store.state.user ? store.state.user.id : null)
         };
         
         let response;
@@ -295,11 +272,35 @@ export default {
       router.push('/login');
     };
 
+    // Markdown渲染函数
+    const renderMarkdown = (text) => {
+      if (!text) return '';
+
+      // 简单的Markdown解析
+      return text
+        // 标题
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        // 粗体
+        .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+        // 斜体
+        .replace(/\*(.*)\*/gim, '<em>$1</em>')
+        // 代码块
+        .replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>')
+        // 行内代码
+        .replace(/`(.*?)`/gim, '<code>$1</code>')
+        // 链接
+        .replace(/\[([^\]]+)\]\(([^\)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
+        // 换行
+        .replace(/\n/gim, '<br>');
+    };
+
     onMounted(() => {
       fetchQuestions();
       // 设置当前用户ID
-      if (store.state.user.userId) {
-        questionForm.userId = store.state.user.userId;
+      if (store.state.user && store.state.user.id) {
+        questionForm.userId = store.state.user.id;
       }
     });
 
@@ -312,12 +313,15 @@ export default {
       questionForm,
       rules,
       formRef,
+      contentTab,
+      answerTab,
       showAddModal,
       editQuestion,
       handleDeleteQuestion,
       handleSubmit,
       handleCancel,
-      handleLogout
+      handleLogout,
+      renderMarkdown
     };
   }
 }
@@ -496,6 +500,114 @@ export default {
   flex-shrink: 0;
 }
 
+/* Markdown编辑器样式 */
+.markdown-editor-container {
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.editor-tabs {
+  background: #fafafa;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.editor-content {
+  min-height: 200px;
+}
+
+.editor-area {
+  padding: 12px;
+}
+
+.markdown-textarea {
+  border: none;
+  resize: vertical;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.markdown-textarea:focus {
+  box-shadow: none;
+}
+
+.preview-area {
+  padding: 16px;
+  min-height: 200px;
+  background: #fff;
+}
+
+.markdown-preview {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin: 16px 0 8px 0;
+  color: #262626;
+}
+
+.markdown-preview h1 {
+  font-size: 24px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
+.markdown-preview h2 {
+  font-size: 20px;
+}
+
+.markdown-preview h3 {
+  font-size: 16px;
+}
+
+.markdown-preview p {
+  margin: 8px 0;
+}
+
+.markdown-preview code {
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+}
+
+.markdown-preview pre {
+  background: #f6f8fa;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.markdown-preview pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-preview strong {
+  font-weight: 600;
+}
+
+.markdown-preview em {
+  font-style: italic;
+}
+
+.markdown-preview a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.markdown-preview a:hover {
+  text-decoration: underline;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .header-content {
@@ -522,6 +634,10 @@ export default {
   .page-title {
     font-size: 24px;
     text-align: center;
+  }
+
+  .markdown-editor-container {
+    margin: 0 -12px;
   }
 }
 </style>

@@ -10,9 +10,9 @@
 
         <nav class="nav-menu">
           <a-button type="link" @click="$router.push('/')">首页</a-button>
-          <a-button type="link" @click="$router.push('/questions')">题目管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/questions')">题目管理</a-button>
           <a-button type="primary">题库管理</a-button>
-          <a-button type="link" @click="$router.push('/users')">用户管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/users')">用户管理</a-button>
         </nav>
 
         <div class="header-right">
@@ -31,21 +31,34 @@
         <div v-if="!isDetailView">
           <div class="page-header">
             <h2 class="page-title">题库管理</h2>
-            <a-button type="primary" @click="showAddModal" class="add-btn">
+            <!-- 管理员可以看到添加题库按钮，普通用户看不到 -->
+            <a-button v-if="isAdmin" type="primary" @click="$router.push('/question-banks/create')" class="add-btn">
               <span class="btn-icon">➕</span>
               添加题库
             </a-button>
           </div>
-          
-          <a-table :columns="columns" :data-source="questionBanks" :loading="loading" row-key="id">
+
+          <a-table 
+            :columns="columns" 
+            :data-source="questionBanks" 
+            :loading="loading" 
+            row-key="id"
+            :pagination="{ 
+              pageSize: 10, 
+              showTotal: (total) => `共 ${total} 条记录`,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              pageSizeOptions: ['10', '20', '50', '100']
+            }"
+          >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'picture'">
-                <img v-if="record.picture" :src="record.picture" style="width: 50px; height: 50px;" />
-                <span v-else>无图片</span>
+                <img v-if="record.picture" :src="record.picture" style="width: 50px; height: 50px; border-radius: 4px;" />
+                <span v-else style="color: #999;">无封面</span>
               </template>
               <template v-if="column.key === 'action'">
                 <a-space>
-                  <a-button type="link" size="small" @click="editQuestionBank(record)">编辑</a-button>
+                  <a-button type="link" size="small" @click="$router.push(`/question-banks/edit/${record.id}`)">编辑</a-button>
                   <a-popconfirm
                     title="确定要删除这个题库吗？"
                     @confirm="handleDeleteQuestionBank(record.id)"
@@ -75,26 +88,76 @@
             <div class="detail-header">
               <div class="detail-picture">
                 <img v-if="currentQuestionBank.picture" :src="currentQuestionBank.picture" alt="题库图片" />
-                <div v-else class="no-picture">暂无图片</div>
+                <div v-else class="no-picture">暂无封面</div>
               </div>
               <div class="detail-info">
                 <h2 class="detail-title">{{ currentQuestionBank.title }}</h2>
                 <p class="detail-description">{{ currentQuestionBank.description || '暂无描述' }}</p>
-                <div class="detail-meta">
-                  <p><strong>创建时间：</strong>{{ currentQuestionBank.createTime }}</p>
-                  <p><strong>更新时间：</strong>{{ currentQuestionBank.updateTime }}</p>
+                <!-- 管理员可以看到元信息，普通用户看不到 -->
+                <div class="detail-meta" v-if="isAdmin">
+                  <p><strong>创建时间：</strong>{{ formatDateTime(currentQuestionBank.createTime) }}</p>
+                  <p><strong>更新时间：</strong>{{ formatDateTime(currentQuestionBank.updateTime) }}</p>
                 </div>
               </div>
             </div>
-            
+
+            <!-- 题目列表 -->
+            <div class="questions-section">
+              <div class="section-header">
+                <h3>题库题目</h3>
+                <!-- 管理员可以看到添加题目按钮，普通用户看不到 -->
+                <a-button v-if="isAdmin" type="primary" @click="$router.push(`/questions/create?questionBankId=${currentQuestionBank.id}`)">
+                  <span class="btn-icon">➕</span>
+                  添加题目
+                </a-button>
+              </div>
+
+              <div class="questions-list">
+                <div v-if="questionBankQuestions.length === 0" class="no-questions">
+                  <a-empty description="暂无题目，快去添加吧！" />
+                </div>
+                <div v-else class="question-item" v-for="question in questionBankQuestions" :key="question.id">
+                  <div class="question-main">
+                    <h4 class="question-title-text" @click="$router.push(`/question/${question.id}`)">
+                      {{ question.title }}
+                    </h4>
+                    <div class="question-tags">
+                      <a-tag v-for="tag in (typeof question.tags === 'string' ? question.tags.split(',') : question.tags || [])" :key="tag" size="small">{{ tag }}</a-tag>
+                    </div>
+                  </div>
+                  <div class="question-actions">
+                    <a-space>
+                      <a-button type="link" size="small" @click="$router.push(`/question/${question.id}`)">
+                        查看详情
+                      </a-button>
+                      <!-- 管理员可以看到编辑和删除按钮，普通用户看不到 -->
+                      <a-button v-if="isAdmin" type="link" size="small" @click="$router.push(`/questions/edit/${question.id}`)">
+                        编辑
+                      </a-button>
+                      <a-popconfirm
+                        v-if="isAdmin"
+                        title="确定要从题库中移除这个题目吗？"
+                        @confirm="removeQuestionFromBank(question.id)"
+                        ok-text="确定"
+                        cancel-text="取消"
+                      >
+                        <a-button type="link" size="small" danger>移除</a-button>
+                      </a-popconfirm>
+                    </a-space>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="detail-actions">
-              <a-button type="primary" @click="editQuestionBank(currentQuestionBank)">
+              <!-- 管理员可以看到编辑题库按钮，普通用户看不到 -->
+              <a-button v-if="isAdmin" type="primary" @click="$router.push(`/question-banks/edit/${currentQuestionBank.id}`)">
                 <span class="btn-icon">✏️</span>
                 编辑题库
               </a-button>
               <a-button @click="backToList">
                 <span class="btn-icon">📋</span>
-                查看题目
+                返回列表
               </a-button>
             </div>
           </div>
@@ -107,31 +170,6 @@
       <p>面试鸭刷题神器 ©2024 Created by LiangPiao</p>
     </footer>
   </div>
-
-  <!-- 添加/编辑题库弹窗 -->
-  <a-modal
-    v-model:open="modalVisible"
-    :title="isEdit ? '编辑题库' : '添加题库'"
-    @ok="handleSubmit"
-    @cancel="handleCancel"
-  >
-    <a-form
-      :model="questionBankForm"
-      :rules="rules"
-      ref="formRef"
-      layout="vertical"
-    >
-      <a-form-item label="题库标题" name="title">
-        <a-input v-model:value="questionBankForm.title" placeholder="请输入题库标题" />
-      </a-form-item>
-      <a-form-item label="题库描述" name="description">
-        <a-textarea v-model:value="questionBankForm.description" :rows="4" placeholder="请输入题库描述" />
-      </a-form-item>
-      <a-form-item label="题库图片" name="picture">
-        <a-input v-model:value="questionBankForm.picture" placeholder="请输入题库图片URL" />
-      </a-form-item>
-    </a-form>
-  </a-modal>
 </template>
 
 <script>
@@ -139,7 +177,8 @@ import { ref, reactive, onMounted, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import { getQuestionBankList, addQuestionBank, updateQuestionBank, deleteQuestionBank, getQuestionBankById } from '../api/questionBank';
+import { getQuestionBankList, deleteQuestionBank, getQuestionBankById, deleteQuestionBankQuestion } from '../api/questionBank';
+import { getQuestionList } from '../api/question';
 
 export default {
   name: 'QuestionBankManage',
@@ -148,20 +187,13 @@ export default {
     const route = useRoute();
     const store = useStore();
     const loading = ref(false);
-    const modalVisible = ref(false);
-    const isEdit = ref(false);
-    const formRef = ref();
-    
+
     const questionBanks = ref([]);
     const isDetailView = ref(false);
     const currentQuestionBank = ref(null);
+    const questionBankQuestions = ref([]);
 
     const columns = [
-      {
-        title: 'ID',
-        dataIndex: 'id',
-        key: 'id',
-      },
       {
         title: '题库标题',
         dataIndex: 'title',
@@ -174,7 +206,7 @@ export default {
         ellipsis: true,
       },
       {
-        title: '图片',
+        title: '封面',
         dataIndex: 'picture',
         key: 'picture',
         width: 100,
@@ -190,23 +222,6 @@ export default {
       },
     ];
 
-    const questionBankForm = reactive({
-      id: null,
-      title: '',
-      description: '',
-      picture: '',
-      userId: null
-    });
-
-    const rules = {
-      title: [
-        { required: true, message: '请输入题库标题', trigger: 'blur' }
-      ],
-      description: [
-        { required: false, message: '请输入题库描述', trigger: 'blur' }
-      ]
-    };
-
     // 获取题库详情
     const fetchQuestionBankDetail = async (id) => {
       loading.value = true;
@@ -215,6 +230,8 @@ export default {
         if (response.code === 200) {
           currentQuestionBank.value = response.data;
           isDetailView.value = true;
+          // 获取题库中的题目列表
+          await fetchQuestionBankQuestions(id);
         } else {
           message.error(response.message || '获取题库详情失败');
           router.push('/question-banks');
@@ -228,20 +245,63 @@ export default {
       }
     };
 
+    // 获取题库中的题目列表
+    const fetchQuestionBankQuestions = async (questionBankId) => {
+      try {
+        const response = await getQuestionList({
+          questionBankId: questionBankId,
+          current: 1,
+          size: 100
+        });
+
+        if (response.code === 200) {
+          questionBankQuestions.value = response.data.records || [];
+        } else {
+          message.error(response.message || '获取题目列表失败');
+        }
+      } catch (error) {
+        console.error('获取题库题目列表错误:', error);
+        message.error('获取题目列表失败，请检查网络连接');
+      }
+    };
+
+    // 从题库中移除题目
+    const removeQuestionFromBank = async (questionId) => {
+      try {
+        const response = await deleteQuestionBankQuestion({
+          questionBankId: currentQuestionBank.value.id,
+          questionId: questionId
+        });
+
+        if (response.code === 200) {
+          message.success('题目已从题库中移除');
+          // 重新获取题目列表
+          await fetchQuestionBankQuestions(currentQuestionBank.value.id);
+        } else {
+          message.error(response.message || '移除失败');
+        }
+      } catch (error) {
+        console.error('移除题目错误:', error);
+        message.error('移除失败，请检查网络连接');
+      }
+    };
+
     // 返回列表视图
     const backToList = () => {
       isDetailView.value = false;
       currentQuestionBank.value = null;
+      questionBankQuestions.value = [];
       router.push('/question-banks');
     };
+
     const fetchQuestionBanks = async () => {
       loading.value = true;
       try {
         const response = await getQuestionBankList({
           current: 1,
-          pageSize: 100
+          size: 100
         });
-        
+
         if (response.code === 200) {
           questionBanks.value = response.data.records || [];
         } else {
@@ -255,22 +315,10 @@ export default {
       }
     };
 
-    const showAddModal = () => {
-      isEdit.value = false;
-      modalVisible.value = true;
-      resetForm();
-    };
-
-    const editQuestionBank = (record) => {
-      isEdit.value = true;
-      modalVisible.value = true;
-      Object.assign(questionBankForm, record);
-    };
-
     const handleDeleteQuestionBank = async (id) => {
       try {
         const response = await deleteQuestionBank(id);
-        
+
         if (response.code === 200) {
           message.success('删除成功');
           // 重新获取题库列表
@@ -284,64 +332,17 @@ export default {
       }
     };
 
-    const handleSubmit = async () => {
-      try {
-        await formRef.value.validate();
-        
-        // 确保userId正确设置
-        const userId = store.state.user?.id || store.state.user?.userId;
-        if (!userId) {
-          message.error('用户未登录，无法创建题库');
-          return;
-        }
-        
-        const data = {
-          ...questionBankForm,
-          userId: userId
-        };
-        
-        let response;
-        if (isEdit.value) {
-          // 编辑题库
-          response = await updateQuestionBank(data);
-        } else {
-          // 添加题库
-          response = await addQuestionBank(data);
-        }
-        
-        if (response.code === 200) {
-          message.success(isEdit.value ? '编辑成功' : '添加成功');
-          modalVisible.value = false;
-          // 重新获取题库列表
-          await fetchQuestionBanks();
-        } else {
-          message.error(response.message || (isEdit.value ? '编辑失败' : '添加失败'));
-        }
-      } catch (error) {
-        console.log('表单验证失败:', error);
-      }
-    };
-
-    const handleCancel = () => {
-      modalVisible.value = false;
-      resetForm();
-    };
-
-    const resetForm = () => {
-      Object.assign(questionBankForm, {
-        id: null,
-        title: '',
-        description: '',
-        picture: '',
-        userId: null
-      });
-    };
-
     const handleLogout = () => {
       // 使用Vuex store管理登出状态
       store.dispatch('logout');
       message.success('已退出登录');
       router.push('/login');
+    };
+
+    // 格式化日期时间
+    const formatDateTime = (dateTime) => {
+      if (!dateTime) return '';
+      return new Date(dateTime).toLocaleString('zh-CN');
     };
 
     // 监听路由参数变化
@@ -366,43 +367,26 @@ export default {
       if (!route.params.id) {
         fetchQuestionBanks();
       }
-      // 设置当前用户ID
-      const userId = store.state.user?.id || store.state.user?.userId;
-      if (userId) {
-        questionBankForm.userId = userId;
-      }
     });
 
     return {
       loading,
-      modalVisible,
-      isEdit,
       questionBanks,
       columns,
-      questionBankForm,
-      rules,
-      formRef,
       isDetailView,
       currentQuestionBank,
-      showAddModal,
-      editQuestionBank,
+      questionBankQuestions,
       handleDeleteQuestionBank,
-      handleSubmit,
-      handleCancel,
       handleLogout,
-      backToList
+      backToList,
+      formatDateTime,
+      removeQuestionFromBank
     };
   }
 }
 </script>
 
 <style scoped>
-.site-layout-content {
-  min-height: 280px;
-  padding: 24px;
-  background: #fff;
-}
-
 .question-bank-manage-container {
   height: 100vh;
   width: 100vw;
@@ -623,31 +607,100 @@ export default {
 }
 
 /* 表格容器 */
-.question-banks-table-container {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.question-banks-table-container :deep(.ant-table) {
+:deep(.ant-table) {
   border-radius: 12px;
 }
 
-.question-banks-table-container :deep(.ant-table-thead > tr > th) {
+:deep(.ant-table-thead > tr > th) {
   background: #FFF5E6;
   border-bottom: 2px solid #FFE8CC;
   font-weight: 600;
   color: #333;
 }
 
-.question-banks-table-container :deep(.ant-table-tbody > tr:hover > td) {
+:deep(.ant-table-tbody > tr:hover > td) {
   background: #FFF5E6;
 }
 
-.question-banks-table-container :deep(.ant-pagination) {
+:deep(.ant-pagination) {
   margin: 16px 0;
   text-align: center;
+}
+
+/* 题目列表样式 */
+.questions-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.questions-list {
+  margin-bottom: 24px;
+}
+
+.question-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s;
+}
+
+.question-item:hover {
+  background: #f0f7ff;
+  border-color: #1890ff;
+}
+
+.question-main {
+  flex: 1;
+}
+
+.question-title-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.question-title-text:hover {
+  color: #1890ff;
+}
+
+.question-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.question-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.no-questions {
+  text-align: center;
+  padding: 48px 0;
+  color: #999;
 }
 
 /* 底部 */
@@ -686,6 +739,32 @@ export default {
   .page-title {
     font-size: 24px;
     text-align: center;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .detail-picture {
+    width: 150px;
+    height: 150px;
+  }
+
+  .question-item {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .question-actions {
+    align-self: stretch;
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
   }
 }
 </style>

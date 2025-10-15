@@ -14,6 +14,8 @@
           <a-button type="link">刷题路线</a-button>
           <a-button type="link">26届秋招热题</a-button>
           <a-button type="link">真实面经</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/questions')">题目管理</a-button>
+          <a-button type="link" v-if="isAdmin" @click="$router.push('/question-banks')">题库管理</a-button>
         </nav>
         
         <div class="header-right">
@@ -32,10 +34,17 @@
                 <a-menu-item key="1" @click="$router.push('/personal-center')">
                   <span>👤 个人中心</span>
                 </a-menu-item>
-                <a-menu-item key="2" @click="$router.push('/users')">
+                <a-menu-item key="2" v-if="isAdmin" @click="$router.push('/users')">
                   <span>👥 用户管理</span>
                 </a-menu-item>
-                <a-menu-item key="3" @click="handleLogout">
+                <a-menu-item key="3" v-if="isAdmin" @click="$router.push('/questions')">
+                  <span>📝 题目管理</span>
+                </a-menu-item>
+                <a-menu-item key="4" v-if="isAdmin" @click="$router.push('/question-banks')">
+                  <span>📚 题库管理</span>
+                </a-menu-item>
+                <a-menu-divider v-if="isAdmin" />
+                <a-menu-item key="5" @click="handleLogout">
                   <span>🚪 退出登录</span>
                 </a-menu-item>
               </a-menu>
