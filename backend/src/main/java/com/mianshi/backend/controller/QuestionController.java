@@ -58,13 +58,15 @@ public class QuestionController {
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size,
             @Parameter(description = "标题") @RequestParam(required = false) String title,
             @Parameter(description = "标签列表") @RequestParam(required = false) String tags,
-            @Parameter(description = "创建用户ID") @RequestParam(required = false) Long userId) {
+            @Parameter(description = "创建用户ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "题库ID") @RequestParam(required = false) Long questionBankId) {
         QuestionQueryDTO queryDTO = new QuestionQueryDTO();
         queryDTO.setCurrent(current.intValue());
         queryDTO.setSize(size.intValue());
         queryDTO.setTitle(title);
         queryDTO.setTags(tags);
         queryDTO.setUserId(userId);
+        queryDTO.setQuestionBankId(questionBankId);
         return ApiResponse.success(questionService.pageQuestions(queryDTO));
     }
 }

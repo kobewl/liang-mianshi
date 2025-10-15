@@ -16,6 +16,8 @@ public class QuestionQueryDTO {
 
     private Long userId;
 
+    private Long questionBankId;
+
     private Integer current = 1;
 
     private Integer size = 10;
