@@ -40,6 +40,13 @@ const routes = [
     name: 'QuestionBankManage',
     component: QuestionBankManage,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/question-bank/:id',
+    name: 'QuestionBankDetail',
+    component: QuestionBankManage,
+    meta: { requiresAuth: true },
+    props: true
   }
 ]
 

@@ -92,140 +92,26 @@
       <!-- 题库卡片区域 -->
       <div class="question-bank-section" ref="questionBankSection">
         <div class="cards-container">
-          <a-row :gutter="[24, 24]">
-            <!-- Java 热门面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/questions')">
-                <div class="card-icon java-icon">
-                  <span>☕</span>
-                </div>
-                <h3 class="card-title">Java 热门面试题 200 道</h3>
-                <p class="card-desc">2025 最新 Java 热门面试题...</p>
-                <div class="card-badge hot-badge">HOT</div>
-              </div>
+          <a-row :gutter="[24, 24]" v-if="loading">
+            <!-- 加载状态 -->
+            <a-col :xs="24" :sm="12" :md="8" :lg="6" v-for="i in 12" :key="i">
+              <a-skeleton active :paragraph="{ rows: 3 }" />
             </a-col>
-
-            <!-- Java 基础面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/questions')">
-                <div class="card-icon java-basic-icon">
-                  <span>📚</span>
+          </a-row>
+          <a-row :gutter="[24, 24]" v-else-if="questionBanks.length > 0">
+            <!-- 真实题库数据 -->
+            <a-col :xs="24" :sm="12" :md="8" :lg="6" v-for="bank in questionBanks" :key="bank.id">
+              <div class="question-card" @click="goToQuestionBank(bank.id)">
+                <div class="card-icon" :class="getIconClass(bank.title)">
+                  <span>{{ getIcon(bank.title) }}</span>
                 </div>
-                <h3 class="card-title">Java 基础面试题</h3>
-                <p class="card-desc">Java 作为广泛应用的编程...</p>
-              </div>
-            </a-col>
-
-            <!-- Java 集合面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/questions')">
-                <div class="card-icon collection-icon">
-                  <span>📦</span>
-                </div>
-                <h3 class="card-title">Java 集合面试题</h3>
-                <p class="card-desc">Java 集合框架是后端开发...</p>
-              </div>
-            </a-col>
-
-            <!-- Java 并发面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/questions')">
-                <div class="card-icon concurrent-icon">
-                  <span>⚡</span>
-                </div>
-                <h3 class="card-title">Java 并发面试题</h3>
-                <p class="card-desc">Java 并发编程是高性能应...</p>
-              </div>
-            </a-col>
-
-            <!-- MySQL 面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon mysql-icon">
-                  <span>🐬</span>
-                </div>
-                <h3 class="card-title">MySQL 面试题</h3>
-                <p class="card-desc">MySQL 是主流的开源关系...</p>
-              </div>
-            </a-col>
-
-            <!-- Redis 面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon redis-icon">
-                  <span>📮</span>
-                </div>
-                <h3 class="card-title">Redis 面试题</h3>
-                <p class="card-desc">Redis 是流行的分布式缓存...</p>
-              </div>
-            </a-col>
-
-            <!-- Spring 面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon spring-icon">
-                  <span>🌱</span>
-                </div>
-                <h3 class="card-title">Spring 面试题</h3>
-                <p class="card-desc">Spring 是 Java 企业级开发...</p>
-              </div>
-            </a-col>
-
-            <!-- SpringBoot 面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon springboot-icon">
-                  <span>🚀</span>
-                </div>
-                <h3 class="card-title">SpringBoot 面试题</h3>
-                <p class="card-desc">SpringBoot 是构建微服务...</p>
-              </div>
-            </a-col>
-
-            <!-- 计算机网络面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon network-icon">
-                  <span>🌐</span>
-                </div>
-                <h3 class="card-title">计算机网络面试题</h3>
-                <p class="card-desc">计算机网络是后端开发必...</p>
-              </div>
-            </a-col>
-
-            <!-- 操作系统面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon os-icon">
-                  <span>💻</span>
-                </div>
-                <h3 class="card-title">操作系统面试题</h3>
-                <p class="card-desc">操作系统是计算机系统管...</p>
-              </div>
-            </a-col>
-
-            <!-- 算法面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon algorithm-icon">
-                  <span>🧮</span>
-                </div>
-                <h3 class="card-title">算法面试题</h3>
-                <p class="card-desc">算法是编程面试的核心考...</p>
-              </div>
-            </a-col>
-
-            <!-- 前端面试题 -->
-            <a-col :xs="24" :sm="12" :md="8" :lg="6">
-              <div class="question-card" @click="$router.push('/question-banks')">
-                <div class="card-icon frontend-icon">
-                  <span>🎨</span>
-                </div>
-                <h3 class="card-title">前端面试题</h3>
-                <p class="card-desc">前端技术日新月异，掌握...</p>
+                <h3 class="card-title">{{ bank.title }}</h3>
+                <p class="card-desc">{{ bank.description || '暂无描述' }}</p>
+                <div class="card-badge hot-badge" v-if="isHotBank(bank.title)">HOT</div>
               </div>
             </a-col>
           </a-row>
+          <a-empty v-else description="暂无题库数据" />
         </div>
       </div>
     </main>
@@ -238,10 +124,11 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { message } from 'ant-design-vue';
+import { getQuestionBankList } from '../api/questionBank';
 
 export default {
   name: 'Home',
@@ -253,6 +140,8 @@ export default {
     const activeTab = ref('开刷');
     const selectedTag = ref('热门');
     const questionBankSection = ref(null);
+    const questionBanks = ref([]);
+    const loading = ref(false);
     
     const categoryTags = [
       '热门', '后端', '前端', 'Java', 'C++', 'Python', 'Go', 'PHP',
@@ -260,6 +149,84 @@ export default {
       '数据库', '计算机基础', '大数据', '考研', '移动开发', '人工智能',
       '游戏开发', '算法', '其他', '全部'
     ];
+
+    // 获取题库数据
+    const fetchQuestionBanks = async () => {
+      loading.value = true;
+      try {
+        const params = {
+          current: 1,
+          size: 50 // 获取前50个题库
+        };
+        const response = await getQuestionBankList(params);
+        if (response.code === 200 && response.data) {
+          questionBanks.value = response.data.records || [];
+        } else {
+          message.error(response.message || '获取题库数据失败');
+        }
+      } catch (error) {
+        console.error('获取题库数据错误:', error);
+        message.error('获取题库数据失败，请检查网络连接');
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    // 根据题库名称获取图标
+    const getIcon = (title) => {
+      if (title.includes('Java')) {
+        return '☕';
+      } else if (title.includes('MySQL') || title.includes('数据库')) {
+        return '🐬';
+      } else if (title.includes('Redis')) {
+        return '📮';
+      } else if (title.includes('Spring')) {
+        return '🌱';
+      } else if (title.includes('网络')) {
+        return '🌐';
+      } else if (title.includes('操作系统') || title.includes('OS')) {
+        return '💻';
+      } else if (title.includes('算法')) {
+        return '🧮';
+      } else if (title.includes('前端')) {
+        return '🎨';
+      } else {
+        return '📚'; // 默认图标
+      }
+    };
+
+    // 根据题库名称获取图标样式类
+    const getIconClass = (title) => {
+      if (title.includes('Java')) {
+        return 'java-icon';
+      } else if (title.includes('MySQL') || title.includes('数据库')) {
+        return 'mysql-icon';
+      } else if (title.includes('Redis')) {
+        return 'redis-icon';
+      } else if (title.includes('Spring')) {
+        return 'spring-icon';
+      } else if (title.includes('网络')) {
+        return 'network-icon';
+      } else if (title.includes('操作系统') || title.includes('OS')) {
+        return 'os-icon';
+      } else if (title.includes('算法')) {
+        return 'algorithm-icon';
+      } else if (title.includes('前端')) {
+        return 'frontend-icon';
+      } else {
+        return 'java-basic-icon'; // 默认样式
+      }
+    };
+
+    // 判断是否为热门题库
+    const isHotBank = (title) => {
+      return title.includes('热门') || title.includes('HOT') || title.includes('最新');
+    };
+
+    // 跳转到题库详情页
+    const goToQuestionBank = (id) => {
+      router.push(`/question-bank/${id}`);
+    };
 
     const scrollToQuestionBank = () => {
       questionBankSection.value?.scrollIntoView({ behavior: 'smooth' });
@@ -271,12 +238,23 @@ export default {
       router.push('/login');
     };
 
+    // 组件挂载时获取题库数据
+    onMounted(() => {
+      fetchQuestionBanks();
+    });
+
     return {
       user,
       activeTab,
       selectedTag,
       categoryTags,
       questionBankSection,
+      questionBanks,
+      loading,
+      getIcon,
+      getIconClass,
+      isHotBank,
+      goToQuestionBank,
       scrollToQuestionBank,
       handleLogout
     };

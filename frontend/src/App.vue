@@ -23,7 +23,9 @@ export default defineComponent({
       const token = localStorage.getItem('token');
       if (token) {
         store.commit('SET_TOKEN', token);
-        // 获取用户信息
+        // 先尝试从本地存储恢复用户信息
+        store.dispatch('initUserInfo');
+        // 然后获取最新的用户信息
         store.dispatch('fetchUserInfo');
       }
     });

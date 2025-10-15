@@ -27,35 +27,78 @@
     <!-- 主要内容 -->
     <main class="main-content">
       <div class="content-wrapper">
-        <div class="page-header">
-          <h2 class="page-title">题库管理</h2>
-          <a-button type="primary" @click="showAddModal" class="add-btn">
-            <span class="btn-icon">➕</span>
-            添加题库
-          </a-button>
+        <!-- 题库列表视图 -->
+        <div v-if="!isDetailView">
+          <div class="page-header">
+            <h2 class="page-title">题库管理</h2>
+            <a-button type="primary" @click="showAddModal" class="add-btn">
+              <span class="btn-icon">➕</span>
+              添加题库
+            </a-button>
+          </div>
+          
+          <a-table :columns="columns" :data-source="questionBanks" :loading="loading" row-key="id">
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'picture'">
+                <img v-if="record.picture" :src="record.picture" style="width: 50px; height: 50px;" />
+                <span v-else>无图片</span>
+              </template>
+              <template v-if="column.key === 'action'">
+                <a-space>
+                  <a-button type="link" size="small" @click="editQuestionBank(record)">编辑</a-button>
+                  <a-popconfirm
+                    title="确定要删除这个题库吗？"
+                    @confirm="handleDeleteQuestionBank(record.id)"
+                    ok-text="确定"
+                    cancel-text="取消"
+                  >
+                    <a-button type="link" size="small" danger>删除</a-button>
+                  </a-popconfirm>
+                </a-space>
+              </template>
+            </template>
+          </a-table>
         </div>
-        
-        <a-table :columns="columns" :data-source="questionBanks" :loading="loading" row-key="id">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'picture'">
-              <img v-if="record.picture" :src="record.picture" style="width: 50px; height: 50px;" />
-              <span v-else>无图片</span>
-            </template>
-            <template v-if="column.key === 'action'">
-              <a-space>
-                <a-button type="link" size="small" @click="editQuestionBank(record)">编辑</a-button>
-                <a-popconfirm
-                  title="确定要删除这个题库吗？"
-                  @confirm="handleDeleteQuestionBank(record.id)"
-                  ok-text="确定"
-                  cancel-text="取消"
-                >
-                  <a-button type="link" size="small" danger>删除</a-button>
-                </a-popconfirm>
-              </a-space>
-            </template>
-          </template>
-        </a-table>
+
+        <!-- 题库详情视图 -->
+        <div v-else-if="currentQuestionBank">
+          <div class="page-header">
+            <a-button type="link" @click="backToList" class="back-btn">
+              <span class="btn-icon">←</span>
+              返回列表
+            </a-button>
+            <h2 class="page-title">题库详情</h2>
+            <div></div>
+          </div>
+
+          <div class="detail-container">
+            <div class="detail-header">
+              <div class="detail-picture">
+                <img v-if="currentQuestionBank.picture" :src="currentQuestionBank.picture" alt="题库图片" />
+                <div v-else class="no-picture">暂无图片</div>
+              </div>
+              <div class="detail-info">
+                <h2 class="detail-title">{{ currentQuestionBank.title }}</h2>
+                <p class="detail-description">{{ currentQuestionBank.description || '暂无描述' }}</p>
+                <div class="detail-meta">
+                  <p><strong>创建时间：</strong>{{ currentQuestionBank.createTime }}</p>
+                  <p><strong>更新时间：</strong>{{ currentQuestionBank.updateTime }}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="detail-actions">
+              <a-button type="primary" @click="editQuestionBank(currentQuestionBank)">
+                <span class="btn-icon">✏️</span>
+                编辑题库
+              </a-button>
+              <a-button @click="backToList">
+                <span class="btn-icon">📋</span>
+                查看题目
+              </a-button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -92,16 +135,17 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, watch } from 'vue';
 import { message } from 'ant-design-vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import { getQuestionBankList, addQuestionBank, updateQuestionBank, deleteQuestionBank } from '../api/questionBank';
+import { getQuestionBankList, addQuestionBank, updateQuestionBank, deleteQuestionBank, getQuestionBankById } from '../api/questionBank';
 
 export default {
   name: 'QuestionBankManage',
   setup() {
     const router = useRouter();
+    const route = useRoute();
     const store = useStore();
     const loading = ref(false);
     const modalVisible = ref(false);
@@ -109,6 +153,8 @@ export default {
     const formRef = ref();
     
     const questionBanks = ref([]);
+    const isDetailView = ref(false);
+    const currentQuestionBank = ref(null);
 
     const columns = [
       {
@@ -161,7 +207,33 @@ export default {
       ]
     };
 
-    // 获取题库列表
+    // 获取题库详情
+    const fetchQuestionBankDetail = async (id) => {
+      loading.value = true;
+      try {
+        const response = await getQuestionBankById(id);
+        if (response.code === 200) {
+          currentQuestionBank.value = response.data;
+          isDetailView.value = true;
+        } else {
+          message.error(response.message || '获取题库详情失败');
+          router.push('/question-banks');
+        }
+      } catch (error) {
+        console.error('获取题库详情错误:', error);
+        message.error('获取题库详情失败，请检查网络连接');
+        router.push('/question-banks');
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    // 返回列表视图
+    const backToList = () => {
+      isDetailView.value = false;
+      currentQuestionBank.value = null;
+      router.push('/question-banks');
+    };
     const fetchQuestionBanks = async () => {
       loading.value = true;
       try {
@@ -216,9 +288,16 @@ export default {
       try {
         await formRef.value.validate();
         
+        // 确保userId正确设置
+        const userId = store.state.user?.id || store.state.user?.userId;
+        if (!userId) {
+          message.error('用户未登录，无法创建题库');
+          return;
+        }
+        
         const data = {
           ...questionBankForm,
-          userId: questionBankForm.userId || store.state.user.userId
+          userId: userId
         };
         
         let response;
@@ -265,11 +344,32 @@ export default {
       router.push('/login');
     };
 
+    // 监听路由参数变化
+    watch(
+      () => route.params.id,
+      (newId) => {
+        if (newId) {
+          // 有ID参数，显示题库详情
+          fetchQuestionBankDetail(newId);
+        } else {
+          // 没有ID参数，显示题库列表
+          isDetailView.value = false;
+          currentQuestionBank.value = null;
+          fetchQuestionBanks();
+        }
+      },
+      { immediate: true }
+    );
+
     onMounted(() => {
-      fetchQuestionBanks();
+      // 如果没有ID参数，获取题库列表
+      if (!route.params.id) {
+        fetchQuestionBanks();
+      }
       // 设置当前用户ID
-      if (store.state.user.userId) {
-        questionBankForm.userId = store.state.user.userId;
+      const userId = store.state.user?.id || store.state.user?.userId;
+      if (userId) {
+        questionBankForm.userId = userId;
       }
     });
 
@@ -282,12 +382,15 @@ export default {
       questionBankForm,
       rules,
       formRef,
+      isDetailView,
+      currentQuestionBank,
       showAddModal,
       editQuestionBank,
       handleDeleteQuestionBank,
       handleSubmit,
       handleCancel,
-      handleLogout
+      handleLogout,
+      backToList
     };
   }
 }
@@ -432,6 +535,91 @@ export default {
 
 .btn-icon {
   margin-right: 6px;
+}
+
+.back-btn {
+  color: #1890ff;
+  font-size: 14px;
+  padding: 0;
+  height: auto;
+  margin-right: 16px;
+}
+
+.back-btn:hover {
+  color: #40a9ff;
+}
+
+.detail-container {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detail-header {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.detail-picture {
+  flex-shrink: 0;
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.no-picture {
+  color: #999;
+  font-size: 16px;
+}
+
+.detail-info {
+  flex: 1;
+}
+
+.detail-title {
+  margin: 0 0 16px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.detail-description {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #595959;
+  margin-bottom: 24px;
+}
+
+.detail-meta {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 16px;
+}
+
+.detail-meta p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
 }
 
 /* 表格容器 */
