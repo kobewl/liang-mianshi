@@ -9,7 +9,7 @@ spring:
   datasource:
     url: jdbc:mysql://14.103.196.157:3306/liang_mianshi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
-    password: 
+    password: kobe200800
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 # MyBatis-Plus 配置

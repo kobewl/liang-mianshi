@@ -6,6 +6,7 @@ import Register from '../views/Register.vue'
 import UserManage from '../views/UserManage.vue'
 import QuestionManage from '../views/QuestionManage.vue'
 import QuestionBankManage from '../views/QuestionBankManage.vue'
+import PersonalCenter from '../views/PersonalCenter.vue'
 
 const routes = [
   {
@@ -47,6 +48,12 @@ const routes = [
     component: QuestionBankManage,
     meta: { requiresAuth: true },
     props: true
+  },
+  {
+    path: '/personal-center',
+    name: 'PersonalCenter',
+    component: PersonalCenter,
+    meta: { requiresAuth: true }
   }
 ]
 

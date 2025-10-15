@@ -29,10 +29,13 @@
             </a-button>
             <template #overlay>
               <a-menu>
-                <a-menu-item key="1" @click="$router.push('/users')">
+                <a-menu-item key="1" @click="$router.push('/personal-center')">
+                  <span>👤 个人中心</span>
+                </a-menu-item>
+                <a-menu-item key="2" @click="$router.push('/users')">
                   <span>👥 用户管理</span>
                 </a-menu-item>
-                <a-menu-item key="2" @click="handleLogout">
+                <a-menu-item key="3" @click="handleLogout">
                   <span>🚪 退出登录</span>
                 </a-menu-item>
               </a-menu>
@@ -44,14 +47,6 @@
 
     <!-- 主要内容区域 -->
     <main class="main-content">
-      <!-- Banner区域 -->
-      <div class="banner-section">
-        <div class="banner-content">
-          <h1 class="banner-title">面试题库</h1>
-          <p class="banner-desc">精选优质面试题，助力求职成功</p>
-        </div>
-      </div>
-
       <!-- 分类标签区域 -->
       <div class="category-section">
         <div class="category-container">
