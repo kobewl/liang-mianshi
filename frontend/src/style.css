@@ -1,32 +1,190 @@
 :root {
-/* 重置基础样式 */
-* {
+  --brand-primary: #ff7a45;
+  --brand-primary-dark: #ff4d4f;
+  --brand-accent: #ffa940;
+  --brand-surface: #0f172a;
+  --text-primary: rgba(15, 23, 42, 0.92);
+  --text-secondary: rgba(71, 85, 105, 0.78);
+  --surface-card: rgba(255, 255, 255, 0.86);
+  --border-muted: rgba(148, 163, 184, 0.28);
+  --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
+  --shadow-hover: 0 22px 55px rgba(15, 23, 42, 0.18);
+  --radius-lg: 20px;
+  --radius-md: 16px;
+  --radius-sm: 10px;
+  --transition-base: all 0.28s ease;
+}
+
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-html, body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+html,
+body {
   height: 100%;
   width: 100%;
+  font-family: 'Inter', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: radial-gradient(circle at 0% 0%, rgba(255, 122, 69, 0.12), rgba(15, 23, 42, 0)),
+              radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.12), rgba(15, 23, 42, 0)),
+              #f5f7fb;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 #app {
-  height: 100vh;
-  width: 100vw;
+  min-height: 100vh;
+  background: transparent;
 }
 
-/* 确保 Ant Design 组件正常显示 */
-.ant-btn {
-  font-family: inherit;
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
-.ant-input {
-  font-family: inherit;
+a:hover {
+  color: var(--brand-primary);
 }
 
-.ant-menu {
-  font-family: inherit;
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.28);
+  border-radius: 999px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.55);
+}
+
+.glass-card {
+  background: var(--surface-card);
+  backdrop-filter: blur(18px);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-muted);
+  transition: var(--transition-base);
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.page-container {
+  width: min(1180px, 92vw);
+  margin: 0 auto;
+  padding: 24px 0 72px;
+}
+
+.page-section {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px);
+}
+
+.page-section + .page-section {
+  margin-top: 24px;
+}
+
+.ant-btn-primary {
+  font-weight: 600;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--brand-primary), #fdba74);
+  border: none;
+  box-shadow: 0 14px 24px rgba(255, 122, 69, 0.22);
+  transition: var(--transition-base);
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background: linear-gradient(120deg, var(--brand-primary-dark), #ff9233);
+  box-shadow: 0 18px 32px rgba(255, 122, 69, 0.35);
+}
+
+.ant-card {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: hidden;
+}
+
+.ant-input,
+.ant-select-selector,
+.ant-picker,
+.ant-input-affix-wrapper {
+  border-radius: var(--radius-sm) !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  transition: var(--transition-base);
+}
+
+.ant-input:focus,
+.ant-select-selector:focus,
+.ant-picker-focused,
+.ant-input-affix-wrapper-focused {
+  border-color: var(--brand-primary) !important;
+  box-shadow: 0 0 0 3px rgba(255, 122, 69, 0.18) !important;
+}
+
+.ant-table {
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+
+.tag-pill {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 500;
+  backdrop-filter: blur(6px);
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.section-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+}
+
+@media (max-width: 992px) {
+  .page-container {
+    width: min(100%, 94vw);
+    padding-top: 16px;
+    padding-bottom: 56px;
+  }
+}
+
+@media (max-width: 768px) {
+  html,
+  body {
+    font-size: 14px;
+  }
+
+  .section-title {
+    font-size: 22px;
+  }
 }

@@ -1,315 +1,210 @@
 <template>
-  <div class="login-container">
-    <div class="login-header">
-      <div class="logo">
-        <span class="logo-icon">🦆</span>
-        <span class="logo-text">面试鸭刷题神器</span>
+  <PageLayout
+    :nav-items="navItems"
+    :show-footer="false"
+    :header-pinned="true"
+  >
+    <section class="auth-layout">
+      <div class="auth-showcase glass-card">
+        <div class="showcase-badge">全新体验</div>
+        <h1>欢迎回到面试鸭刷题神</h1>
+        <p>全新的现代化界面、沉浸式 Markdown 编辑器与数据管理能力，只为让你的备战更轻松。</p>
+        <ul>
+          <li>题目、题库、用户统一管理，所见即所得。</li>
+          <li>智能 Markdown 编辑，支持实时预览与快捷插入。</li>
+          <li>云端同步，随时随地继续你的学习旅程。</li>
+        </ul>
       </div>
-      <div class="header-actions">
-        <a-button type="link" @click="$router.push('/')">主页</a-button>
-        <a-button type="link" @click="$router.push('/register')">注册账号</a-button>
-      </div>
-    </div>
-    
-    <div class="login-content">
-      <div class="login-wrapper">
-        <div class="login-card">
-          <h2 class="login-title">用户登录</h2>
-          <p class="login-subtitle">登录后畅享海量面试题库</p>
-          
-          <a-form
-            :model="loginForm"
-            :rules="rules"
-            ref="loginFormRef"
-            @finish="handleLogin"
-            class="login-form"
-          >
-            <a-form-item name="userAccount">
-              <a-input 
-                v-model:value="loginForm.userAccount" 
-                placeholder="请输入用户账号"
-                size="large"
-                class="custom-input"
-              >
-                <template #prefix>
-                  <span class="input-icon">👤</span>
-                </template>
-              </a-input>
-            </a-form-item>
-            
-            <a-form-item name="userPassword">
-              <a-input-password 
-                v-model:value="loginForm.userPassword" 
-                placeholder="请输入密码"
-                size="large"
-                class="custom-input"
-              >
-                <template #prefix>
-                  <span class="input-icon">🔒</span>
-                </template>
-              </a-input-password>
-            </a-form-item>
-            
-            <a-form-item>
-              <a-button 
-                type="primary" 
-                html-type="submit" 
-                :loading="loading" 
-                block 
-                size="large"
-                class="login-btn"
-              >
-                立即登录
-              </a-button>
-            </a-form-item>
-            
-            <div class="form-footer">
-              <span>还没有账号？</span>
-              <a-button type="link" @click="$router.push('/register')" class="register-link">
-                立即注册
-              </a-button>
-            </div>
-          </a-form>
+
+      <div class="auth-card glass-card">
+        <div class="auth-header">
+          <h2>账号登录</h2>
+          <p>使用你的账号密码登录，继续你的刷题计划。</p>
+        </div>
+        <a-form
+          ref="loginFormRef"
+          :model="loginForm"
+          :rules="rules"
+          layout="vertical"
+          @finish="handleLogin"
+        >
+          <a-form-item name="userAccount" label="账号">
+            <a-input
+              v-model:value="loginForm.userAccount"
+              size="large"
+              placeholder="请输入账号（支持字母与数字组合）"
+              allow-clear
+            />
+          </a-form-item>
+
+          <a-form-item name="userPassword" label="密码">
+            <a-input-password
+              v-model:value="loginForm.userPassword"
+              size="large"
+              placeholder="请输入密码"
+              allow-clear
+            />
+          </a-form-item>
+
+          <div class="auth-actions">
+            <a-button
+              type="primary"
+              shape="round"
+              size="large"
+              html-type="submit"
+              block
+              :loading="loading"
+            >
+              立即登录
+            </a-button>
+          </div>
+        </a-form>
+
+        <div class="auth-footer">
+          <span>还没有账号？</span>
+          <a-button type="link" @click="router.push('/register')">立即注册</a-button>
         </div>
       </div>
-    </div>
-  </div>
+    </section>
+  </PageLayout>
 </template>
 
-<script>
-import { ref, reactive } from 'vue';
-import { message } from 'ant-design-vue';
+<script setup>
+import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import { message } from 'ant-design-vue';
+import PageLayout from '../components/layout/PageLayout.vue';
 import { login } from '../api';
 
-export default {
-  name: 'Login',
-  setup() {
-    const router = useRouter();
-    const store = useStore();
-    const loginFormRef = ref();
-    const loading = ref(false);
-    
-    const loginForm = reactive({
-      userAccount: '',
-      userPassword: ''
-    });
+const router = useRouter();
+const store = useStore();
 
-    const rules = {
-      userAccount: [
-        { required: true, message: '请输入用户账号', trigger: 'blur' },
-        { min: 4, max: 20, message: '账号长度在 4 到 20 个字符', trigger: 'blur' }
-      ],
-      userPassword: [
-        { required: true, message: '请输入用户密码', trigger: 'blur' },
-        { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
-      ]
-    };
+const loginFormRef = ref();
+const loading = ref(false);
 
-    const handleLogin = async () => {
-      loading.value = true;
-      try {
-        const response = await login(loginForm);
-        
-        if (response.code === 200) {
-          // 登录成功
-          const { token, ...userInfo } = response.data;
-          
-          // 使用Vuex store管理登录状态
-          store.dispatch('login', { token, user: userInfo });
-          
-          message.success('登录成功！');
-          // 跳转到主页
-          router.push('/');
-        } else {
-          // 登录失败，显示错误信息
-          message.error(response.message || '登录失败，请检查账号和密码');
-        }
-      } catch (error) {
-        console.error('登录错误:', error);
-        const errorMsg = error.response?.data?.message || '登录失败，请检查网络连接';
-        message.error(errorMsg);
-      } finally {
-        loading.value = false;
-      }
-    };
+const loginForm = reactive({
+  userAccount: '',
+  userPassword: ''
+});
 
-    return {
-      loginForm,
-      rules,
-      loginFormRef,
-      loading,
-      handleLogin
-    };
+const rules = {
+  userAccount: [
+    { required: true, message: '请输入用户账号', trigger: 'blur' },
+    { min: 4, max: 20, message: '账号长度需在 4 到 20 个字符之间', trigger: 'blur' }
+  ],
+  userPassword: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度需在 6 到 20 个字符之间', trigger: 'blur' }
+  ]
+};
+
+const navItems = [
+  { key: 'home', label: '返回首页', path: '/' }
+];
+
+const handleLogin = async () => {
+  loading.value = true;
+  try {
+    const response = await login(loginForm);
+    if (response.code === 200) {
+      const { token, ...userInfo } = response.data;
+      store.dispatch('login', { token, user: userInfo });
+      message.success('登录成功，欢迎回来！');
+      router.push('/');
+    } else {
+      message.error(response.message || '登录失败，请检查账号和密码');
+    }
+  } catch (error) {
+    console.error('登录错误:', error);
+    const errorMsg = error?.response?.data?.message || '登录失败，请稍后重试';
+    message.error(errorMsg);
+  } finally {
+    loading.value = false;
   }
-}
+};
 </script>
 
 <style scoped>
-.login-container {
-  height: 100vh;
-  width: 100vw;
-  background: linear-gradient(135deg, #FFF5E6 0%, #FFE8CC 100%);
-  overflow: hidden;
+.auth-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+  align-items: stretch;
+  margin-top: 24px;
 }
 
-.login-header {
+.auth-showcase {
+  padding: 40px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 48px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  flex-direction: column;
+  gap: 18px;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 20px;
+.showcase-badge {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 600;
-  color: #333;
+  letter-spacing: 0.6px;
+  background: rgba(59, 130, 246, 0.18);
+  color: #2563eb;
 }
 
-.logo-icon {
-  font-size: 28px;
+.auth-showcase h1 {
+  font-size: clamp(28px, 4vw, 34px);
+  line-height: 1.2;
+  font-weight: 700;
 }
 
-.logo-text {
-  background: linear-gradient(135deg, #FF9A3D 0%, #FF6B35 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.header-actions {
-  display: flex;
-  gap: 16px;
-}
-
-.header-actions :deep(.ant-btn-link) {
-  color: #666;
+.auth-showcase p {
   font-size: 15px;
+  color: var(--text-secondary);
 }
 
-.header-actions :deep(.ant-btn-link:hover) {
-  color: #FF9A3D;
+.auth-showcase ul {
+  margin-top: 12px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
 }
 
-.login-content {
+.auth-card {
+  padding: 38px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.auth-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.auth-header p {
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.auth-actions {
+  margin-top: 8px;
+}
+
+.auth-footer {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 68px);
-  padding: 40px 20px;
-}
-
-.login-wrapper {
-  width: 100%;
-  max-width: 450px;
-}
-
-.login-card {
-  background: white;
-  border-radius: 16px;
-  padding: 48px 40px;
-  box-shadow: 0 8px 32px rgba(255, 154, 61, 0.15);
-}
-
-.login-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.login-subtitle {
+  gap: 6px;
   font-size: 14px;
-  color: #999;
-  text-align: center;
-  margin-bottom: 32px;
+  color: var(--text-secondary);
 }
 
-.login-form {
-  margin-top: 24px;
-}
-
-.custom-input {
-  border-radius: 8px;
-  border: 2px solid #f0f0f0;
-  transition: all 0.3s;
-}
-
-.custom-input:hover,
-.custom-input:focus {
-  border-color: #FF9A3D;
-}
-
-.custom-input :deep(.ant-input) {
-  font-size: 15px;
-}
-
-.input-icon {
-  font-size: 18px;
-  margin-right: 4px;
-}
-
-.login-btn {
-  height: 48px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #FF9A3D 0%, #FF6B35 100%);
-  border: none;
-  font-size: 16px;
-  font-weight: 600;
-  margin-top: 8px;
-  box-shadow: 0 4px 12px rgba(255, 154, 61, 0.3);
-  transition: all 0.3s;
-}
-
-.login-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 154, 61, 0.4);
-}
-
-.form-footer {
-  text-align: center;
-  margin-top: 24px;
-  font-size: 14px;
-  color: #666;
-}
-
-.register-link {
-  color: #FF9A3D;
-  font-weight: 500;
-  padding: 0 4px;
-}
-
-.register-link:hover {
-  color: #FF6B35;
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .login-header {
-    padding: 12px 20px;
-  }
-  
-  .logo {
-    font-size: 18px;
-  }
-  
-  .logo-icon {
-    font-size: 24px;
-  }
-  
-  .login-card {
-    padding: 36px 24px;
-  }
-  
-  .login-title {
-    font-size: 24px;
+  .auth-card {
+    padding: 28px 24px;
   }
 }
 </style>

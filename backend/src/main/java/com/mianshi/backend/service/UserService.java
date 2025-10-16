@@ -10,6 +10,11 @@ import com.mianshi.backend.model.dto.user.UserLoginDTO;
 import com.mianshi.backend.model.vo.user.UserVO;
 import com.mianshi.backend.model.vo.user.UserLoginVO;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
 /**
  * 用户服务
  */
@@ -26,7 +31,7 @@ public interface UserService extends IService<User> {
     /**
      * 更新用户
      *
-     * @param id 用户ID
+     * @param id            用户ID
      * @param userUpdateDTO 用户更新DTO
      * @return 是否成功
      */
@@ -47,7 +52,7 @@ public interface UserService extends IService<User> {
      * @return 用户VO分页
      */
     Page<UserVO> pageUsers(UserQueryDTO queryDTO);
-    
+
     /**
      * 用户登录
      *
@@ -71,4 +76,13 @@ public interface UserService extends IService<User> {
      * @return 是否成功
      */
     Boolean addUserSignIn(Long userId);
+
+    /**
+     * 获取用户某个年份的签到记录
+     *
+     * @param userId 用户ID
+     * @param year   年份
+     * @return 用户签到记录
+     */
+    List<Integer> getUserSignIn(Long userId, Integer year);
 }

@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useStore } from 'vuex'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
@@ -10,6 +9,7 @@ import QuestionBankManage from '../views/QuestionBankManage.vue'
 import QuestionBankEdit from '../views/QuestionBankEdit.vue'
 import QuestionDetail from '../views/QuestionDetail.vue'
 import PersonalCenter from '../views/PersonalCenter.vue'
+import store from '../store'
 
 const routes = [
   {
@@ -98,40 +98,54 @@ const router = createRouter({
   routes
 })
 
+const ensureUser = () => {
+  const stateUser = store.state.user
+  if (stateUser && stateUser.userRole) {
+    return stateUser
+  }
+
+  const cached = localStorage.getItem('userInfo')
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached)
+      store.commit('SET_USER', parsed)
+      return parsed
+    } catch (error) {
+      console.error('恢复用户信息失败:', error)
+    }
+  }
+  return null
+}
+
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  // 检查本地存储中是否有token
-  const token = localStorage.getItem('token')
+  const token = store.state.token || localStorage.getItem('token')
   const isLoggedIn = !!token
 
-  // 如果页面需要登录但用户未登录，则重定向到登录页
   if (to.meta.requiresAuth && !isLoggedIn) {
     next('/login')
-  } else if (to.path === '/login' && isLoggedIn) {
-    // 如果用户已登录但访问登录页，则重定向到首页
+    return
+  }
+
+  if (to.path === '/login' && isLoggedIn) {
     next('/')
-  } else if (to.meta.requiresAuth && to.meta.requiresAdmin) {
-    // 如果页面需要管理员权限，检查用户角色
-    try {
-      const userStr = localStorage.getItem('user')
-      if (userStr) {
-        const user = JSON.parse(userStr)
-        if (user.userRole === 'admin') {
-          next()
-        } else {
-          // 普通用户尝试访问管理员页面，重定向到首页
-          next('/')
-        }
-      } else {
-        next('/login')
-      }
-    } catch (error) {
-      console.error('解析用户信息失败:', error)
+    return
+  }
+
+  if (to.meta.requiresAuth && to.meta.requiresAdmin) {
+    const user = ensureUser()
+    const role = user?.userRole?.toLowerCase()
+    if (role === 'admin') {
+      next()
+    } else if (isLoggedIn) {
+      next('/')
+    } else {
       next('/login')
     }
-  } else {
-    next()
+    return
   }
+
+  next()
 })
 
 export default router

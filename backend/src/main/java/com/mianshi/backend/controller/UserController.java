@@ -18,6 +18,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
 /**
  * 用户控制器
  */
@@ -103,10 +107,30 @@ public class UserController {
     public ApiResponse<Boolean> addSignIn(HttpServletRequest request) {
 
         Long userId = (Long) request.getAttribute("userId");
-        if(userId == null) {
+        if (userId == null) {
             return ApiResponse.error("必须登录才能签到");
         }
         return ApiResponse.success(userService.addUserSignIn(userId));
+    }
+
+    /**
+     * 获取用户签到记录
+     *
+     * @param request HttpServletRequest
+     * @return 用户签到记录
+     * @Param year 年份
+     */
+    @Operation(summary = "获取用户签到记录", description = "获取用户签到记录")
+    @PostMapping("/get/sign_in")
+    public ApiResponse<List<Integer>> getUserSignIn(Integer year, HttpServletRequest request) {
+
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            return ApiResponse.error("必须登录才能签到");
+        }
+
+        List<Integer> userSignIn = userService.getUserSignIn(userId, year);
+        return ApiResponse.success(userSignIn);
     }
 
 }

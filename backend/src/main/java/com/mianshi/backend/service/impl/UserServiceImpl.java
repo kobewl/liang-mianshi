@@ -22,7 +22,11 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Year;
+import java.time.YearMonth;
+import java.util.*;
 
 /**
  * 用户服务实现
@@ -219,5 +223,37 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return true;
         }
         return true;
+    }
+
+    @Override
+    public List<Integer> getUserSignIn(Long userId, Integer year) {
+        // 1. 判断 year 是否为空
+        if (year == null) {
+            LocalDate now = LocalDate.now();
+            year = now.getYear();
+        }
+        String key = RedissonConstants.getUserSignInRedisKey(year, userId);
+
+        // 2. 获取 Reids 的 BitMap
+        RBitSet signInBitSet = redissonClient.getBitSet(key);
+        // 加载 Bitset 到内存中，避免后续读取时发送多次请求
+        BitSet bitSet = signInBitSet.asBitSet();
+
+        // 3. 构造返回结果
+        // 使用 LinkedHashMap 的原因：
+        // 1. 保留插入顺序
+        // 2. 避免日期排序
+        // Map<LocalDate, Boolean> result = new LinkedHashMap<>();
+
+        // 统计签到的日期
+        List<Integer> dayList = new ArrayList<>();
+        // 从索引 0 开始遍历，因为 Bitset 的索引是从 0 开始的，查找下一个被设置为 1的位
+        int index = bitSet.nextSetBit(0);
+        while (index > 0) {
+            dayList.add(index);
+            // 继续查找下一个被设置为 1 的位
+            index = bitSet.nextSetBit(index + 1);
+        }
+        return dayList;
     }
 }
