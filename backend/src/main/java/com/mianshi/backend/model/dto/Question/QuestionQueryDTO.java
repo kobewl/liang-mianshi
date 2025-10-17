@@ -18,6 +18,8 @@ public class QuestionQueryDTO {
 
     private Long questionBankId;
 
+    private Integer difficulty;
+
     private Integer current = 1;
 
     private Integer size = 10;

@@ -37,6 +37,7 @@ create table if not exists question
     title      varchar(256)                           null comment '标题',
     content    text                                   null comment '内容',
     tags       varchar(1024)                          null comment '标签列表 (json 数组)',
+    difficulty tinyint      default 1                 not null comment '题目难度（1-基础 2-简单 3-中等 4-困难）',
     answer     text                                   null comment '推荐答案',
     userId     bigint                                 not null comment '创建用户 id',
     editTime   datetime     default CURRENT_TIMESTAMP not null comment '编辑时间',

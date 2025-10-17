@@ -21,6 +21,11 @@ public class QuestionAddDTO {
      */
     private List<String> tags;
 
+    /**
+     * 题目难度（1-基础 2-简单 3-中等 4-困难）
+     */
+    private Integer difficulty;
+
     private String answer;
 
     private Long userId;

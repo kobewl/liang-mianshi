@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="question-detail-container">
     <!-- 顶部导航栏 -->
     <header class="header">
@@ -215,10 +215,7 @@
       </div>
     </main>
 
-    <!-- 底部 -->
-    <footer class="footer">
-      <p>面试鸭刷题神器 ©2024 Created by LiangPiao</p>
-    </footer>
+    <AppFooter />
   </div>
 </template>
 
@@ -228,9 +225,13 @@ import { message } from 'ant-design-vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { getQuestionById } from '../api/question';
+import AppFooter from '../components/layout/AppFooter.vue';
 
 export default {
   name: 'QuestionDetail',
+  components: {
+    AppFooter
+  },
   setup() {
     const router = useRouter();
     const route = useRoute();
@@ -294,18 +295,28 @@ export default {
     };
 
     // 获取难度样式类
+    const difficultyClassMap = {
+      1: 'easy',
+      2: 'easy',
+      3: 'medium',
+      4: 'hard'
+    };
+    const difficultyLabelMap = {
+      1: '基础',
+      2: '简单',
+      3: '中等',
+      4: '困难'
+    };
+
     const getDifficultyClass = (difficulty) => {
-      const classMap = {
-        '简单': 'easy',
-        '中等': 'medium',
-        '困难': 'hard'
-      };
-      return classMap[difficulty] || 'medium';
+      const key = Number(difficulty) || 0;
+      return difficultyClassMap[key] || 'medium';
     };
 
     // 获取难度文本
     const getDifficultyText = (difficulty) => {
-      return difficulty || '中等';
+      const key = Number(difficulty) || 0;
+      return difficultyLabelMap[key] || '中等'
     };
 
     // Markdown渲染函数
@@ -486,12 +497,11 @@ export default {
 
 <style scoped>
 .question-detail-container {
-  height: 100vh;
-  width: 100vw;
+  min-height: 100vh;
+  width: 100%;
   background: #f8f9fa;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 /* 头部导航 */
@@ -853,15 +863,6 @@ export default {
 }
 
 /* 底部 */
-.footer {
-  background: #333;
-  color: rgba(255, 255, 255, 0.65);
-  text-align: center;
-  padding: 24px;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .content-layout {

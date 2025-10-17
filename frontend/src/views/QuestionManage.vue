@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <PageLayout
     variant="admin"
     :nav-items="navItems"
@@ -42,6 +42,14 @@
               :token-separators="[',', '，', ' ']"
             />
           </a-col>
+          <a-col :xs="24" :sm="12" :md="6">
+            <a-select
+              v-model:value="query.difficulty"
+              placeholder="选择难度"
+              allow-clear
+              :options="difficultyOptions"
+            />
+          </a-col>
           <a-col :xs="24" :sm="24" :md="6">
             <a-space>
               <a-button shape="round" @click="resetFilters">重置</a-button>
@@ -73,6 +81,9 @@
                 {{ tag }}
               </a-tag>
             </a-space>
+          </template>
+          <template v-else-if="column.key === 'difficulty'">
+            <a-tag color="processing">{{ formatDifficulty(record.difficulty) }}</a-tag>
           </template>
 
           <template v-else-if="column.key === 'createTime'">
@@ -113,6 +124,7 @@ const questions = ref([]);
 const query = reactive({
   title: '',
   tags: [],
+  difficulty: null,
   current: 1,
   size: 10
 });
@@ -123,6 +135,20 @@ const pagination = reactive({
   total: 0,
   showTotal: (total) => `共 ${total} 条`
 });
+
+const difficultyOptions = [
+  { value: 1, label: '基础' },
+  { value: 2, label: '简单' },
+  { value: 3, label: '中等' },
+  { value: 4, label: '困难' }
+];
+
+const difficultyTextMap = {
+  1: '基础',
+  2: '简单',
+  3: '中等',
+  4: '困难'
+};
 
 const navItems = [
   { key: 'admin-home', label: '首页', path: '/admin' },
@@ -151,7 +177,8 @@ const fetchQuestions = async () => {
       current: pagination.current,
       size: pagination.pageSize,
       title: query.title || undefined,
-      tags: (query.tags || []).join(',')
+      tags: (query.tags || []).join(','),
+      difficulty: query.difficulty || undefined
     };
     const response = await getQuestionList(params);
     if (response.code === 200) {
@@ -193,6 +220,8 @@ const handleDelete = (id) => async () => {
     message.error('删除失败，请稍后再试');
   }
 };
+
+const formatDifficulty = (value) => difficultyTextMap[value] || '中等';
 
 const normalizeTags = (tags) => {
   if (!tags) return [];

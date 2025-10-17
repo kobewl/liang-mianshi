@@ -47,6 +47,13 @@
                 :max-tag-count="6"
               />
             </a-form-item>
+            <a-form-item label="题目难度" name="difficulty">
+              <a-select
+                v-model:value="questionForm.difficulty"
+                size="large"
+                :options="difficultyOptions"
+              />
+            </a-form-item>
           </div>
 
           <a-form-item label="题目内容" name="content">
@@ -109,9 +116,17 @@ const questionForm = reactive({
   content: '',
   answer: '',
   tags: [],
+  difficulty: 1,
   userId: null,
   selectedQuestionBanks: []
 });
+
+const difficultyOptions = [
+  { value: 1, label: '基础' },
+  { value: 2, label: '简单' },
+  { value: 3, label: '中等' },
+  { value: 4, label: '困难' }
+];
 
 const navItems = [
   { key: 'admin-home', label: '首页', path: '/admin' },
@@ -184,6 +199,7 @@ const fetchQuestionDetail = async (id) => {
         : (typeof data.tags === 'string' && data.tags.length > 0
           ? data.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
           : []);
+      questionForm.difficulty = data.difficulty ?? 1;
     } else {
       message.error(response.message || '获取题目详情失败');
       backToList();
@@ -216,6 +232,7 @@ const handleSubmit = async () => {
       content: questionForm.content,
       answer: questionForm.answer,
       tags: (questionForm.tags || []).map((tag) => tag.trim()).filter(Boolean),
+      difficulty: questionForm.difficulty,
       userId
     };
 

@@ -57,7 +57,15 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
             throw new IllegalArgumentException("用户ID必须大于0");
         }
 
-        // 6. 转换并保存题目
+        // 6. 校验题目难度，默认基础难度
+        Integer difficulty = questionAddDTO.getDifficulty();
+        if (difficulty == null) {
+            questionAddDTO.setDifficulty(1);
+        } else if (!isValidDifficulty(difficulty)) {
+            throw new IllegalArgumentException("题目难度取值范围应为1-4");
+        }
+
+        // 7. 转换并保存题目
         Question question = new Question();
         BeanUtil.copyProperties(questionAddDTO, question, CopyOptions.create().setIgnoreProperties("tags"));
         question.setTags(serializeTags(questionAddDTO.getTags()));
@@ -93,10 +101,18 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
             throw new IllegalArgumentException("题目内容不能超过5000个字符");
         }
 
-        // 5. 转换并更新题目
+        // 5. 如果更新难度，校验范围
+        if (questionUpdateDTO.getDifficulty() != null && !isValidDifficulty(questionUpdateDTO.getDifficulty())) {
+            throw new IllegalArgumentException("题目难度取值范围应为1-4");
+        }
+
+        // 6. 转换并更新题目
         Question question = new Question();
         BeanUtil.copyProperties(questionUpdateDTO, question, CopyOptions.create().setIgnoreProperties("tags"));
         question.setId(id);
+        if (question.getDifficulty() == null) {
+            question.setDifficulty(existQuestion.getDifficulty());
+        }
         question.setTags(serializeTags(questionUpdateDTO.getTags()));
         return this.updateById(question);
     }
@@ -137,6 +153,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         queryWrapper.like(StringUtils.hasText(queryDTO.getTitle()), Question::getTitle, queryDTO.getTitle());
         queryWrapper.like(StringUtils.hasText(queryDTO.getTags()), Question::getTags, queryDTO.getTags());
         queryWrapper.eq(queryDTO.getUserId() != null, Question::getUserId, queryDTO.getUserId());
+        queryWrapper.eq(queryDTO.getDifficulty() != null, Question::getDifficulty, queryDTO.getDifficulty());
 
         queryWrapper.orderByAsc(Question::getId);
         queryWrapper.orderByAsc(Question::getCreateTime);
@@ -193,5 +210,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                     .distinct()
                     .collect(Collectors.toList());
         }
+    }
+
+    private boolean isValidDifficulty(Integer difficulty) {
+        return difficulty != null && difficulty >= 1 && difficulty <= 4;
     }
 }
