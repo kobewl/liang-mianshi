@@ -27,7 +27,9 @@ public class QuestionBankController {
 
     @Operation(summary = "创建题库", description = "创建新题库")
     @PostMapping
-    public ApiResponse<Long> createQuestionBank(@Valid @RequestBody QuestionBankAddDTO questionBankAddDTO) {
+    public ApiResponse<Long> createQuestionBank(@RequestAttribute("userId") Long userId,
+                                                @Valid @RequestBody QuestionBankAddDTO questionBankAddDTO) {
+        questionBankAddDTO.setUserId(userId);
         return ApiResponse.success(questionBankService.addQuestionBank(questionBankAddDTO));
     }
 

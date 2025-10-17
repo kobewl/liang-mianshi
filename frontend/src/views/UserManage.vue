@@ -164,7 +164,7 @@ const hero = {
 };
 
 const navItems = [
-  { key: 'home', label: '首页', path: '/' },
+  { key: 'admin-home', label: '首页', path: '/admin' },
   { key: 'question-manage', label: '题目列表', path: '/questions' },
   { key: 'bank-manage', label: '题库管理', path: '/question-banks' },
   { key: 'user-manage', label: '用户管理', path: '/users' }

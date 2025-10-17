@@ -27,15 +27,19 @@ public class QuestionController {
 
     @Operation(summary = "创建题目", description = "创建新题目")
     @PostMapping
-    public ApiResponse<Long> createQuestion(@Valid @RequestBody QuestionAddDTO questionAddDTO) {
+    public ApiResponse<Long> createQuestion(@RequestAttribute("userId") Long userId,
+                                            @Valid @RequestBody QuestionAddDTO questionAddDTO) {
+        questionAddDTO.setUserId(userId);
         return ApiResponse.success(questionService.addQuestion(questionAddDTO));
     }
 
     @Operation(summary = "更新题目", description = "根据 ID 更新题目信息")
     @PutMapping("/{id}")
     public ApiResponse<Boolean> updateQuestion(
+            @RequestAttribute("userId") Long userId,
             @Parameter(description = "题目ID") @PathVariable Long id,
             @Valid @RequestBody QuestionUpdateDTO questionUpdateDTO) {
+        questionUpdateDTO.setUserId(userId);
         return ApiResponse.success(questionService.updateQuestion(id, questionUpdateDTO));
     }
 

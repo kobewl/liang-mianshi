@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <PageLayout
     variant="admin"
     :nav-items="navItems"
@@ -39,11 +39,11 @@
 
             <a-form-item label="标签" name="tags">
               <a-select
-                v-model:value="tagsField"
+                v-model:value="questionForm.tags"
                 mode="tags"
                 size="large"
                 placeholder="输入标签后回车添加，示例：Java、Redis"
-                :token-separators="[',', '，', ' ']"
+                :token-separators="[',', ' ']"
                 :max-tag-count="6"
               />
             </a-form-item>
@@ -108,12 +108,13 @@ const questionForm = reactive({
   title: '',
   content: '',
   answer: '',
-  tags: '',
+  tags: [],
   userId: null,
   selectedQuestionBanks: []
 });
 
 const navItems = [
+  { key: 'admin-home', label: '首页', path: '/admin' },
   { key: 'question-manage', label: '题目列表', path: '/questions' },
   { key: 'question-bank-manage', label: '题库管理', path: '/question-banks' },
   { key: 'user-manage', label: '用户管理', path: '/users' }
@@ -154,16 +155,6 @@ const rules = {
   ]
 };
 
-const tagsField = computed({
-  get: () => {
-    if (!questionForm.tags) return [];
-    return questionForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean);
-  },
-  set: (value) => {
-    questionForm.tags = (value || []).map((tag) => tag.trim()).filter(Boolean).join(',');
-  }
-});
-
 const fetchQuestionBanks = async () => {
   try {
     const response = await getQuestionBankList({ current: 1, size: 100 });
@@ -188,7 +179,11 @@ const fetchQuestionDetail = async (id) => {
       questionForm.title = data.title || '';
       questionForm.content = data.content || '';
       questionForm.answer = data.answer || '';
-      questionForm.tags = Array.isArray(data.tags) ? data.tags.join(',') : (data.tags || '');
+      questionForm.tags = Array.isArray(data.tags)
+        ? data.tags
+        : (typeof data.tags === 'string' && data.tags.length > 0
+          ? data.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+          : []);
     } else {
       message.error(response.message || '获取题目详情失败');
       backToList();
@@ -220,7 +215,7 @@ const handleSubmit = async () => {
       title: questionForm.title,
       content: questionForm.content,
       answer: questionForm.answer,
-      tags: questionForm.tags,
+      tags: (questionForm.tags || []).map((tag) => tag.trim()).filter(Boolean),
       userId
     };
 

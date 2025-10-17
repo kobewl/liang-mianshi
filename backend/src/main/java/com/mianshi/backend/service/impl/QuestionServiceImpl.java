@@ -1,21 +1,25 @@
 package com.mianshi.backend.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.mianshi.backend.mapper.QuestionMapper;
-import com.mianshi.backend.model.entity.Question;
 import com.mianshi.backend.model.dto.Question.QuestionAddDTO;
-import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
 import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
-import com.mianshi.backend.service.QuestionService;
-import com.mianshi.backend.service.QuestionBankQuestionService;
+import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
+import com.mianshi.backend.model.entity.Question;
 import com.mianshi.backend.model.vo.Question.QuestionVO;
+import com.mianshi.backend.service.QuestionBankQuestionService;
+import com.mianshi.backend.service.QuestionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,7 +58,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
 
         // 6. 转换并保存题目
-        Question question = BeanUtil.copyProperties(questionAddDTO, Question.class);
+        Question question = new Question();
+        BeanUtil.copyProperties(questionAddDTO, question, CopyOptions.create().setIgnoreProperties("tags"));
+        question.setTags(serializeTags(questionAddDTO.getTags()));
         this.save(question);
         return question.getId();
     }
@@ -88,8 +94,10 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
 
         // 5. 转换并更新题目
-        Question question = BeanUtil.copyProperties(questionUpdateDTO, Question.class);
+        Question question = new Question();
+        BeanUtil.copyProperties(questionUpdateDTO, question, CopyOptions.create().setIgnoreProperties("tags"));
         question.setId(id);
+        question.setTags(serializeTags(questionUpdateDTO.getTags()));
         return this.updateById(question);
     }
 
@@ -99,7 +107,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         if (question == null) {
             return null;
         }
-        return BeanUtil.copyProperties(question, QuestionVO.class);
+        return toQuestionVO(question);
     }
 
     @Override
@@ -109,17 +117,17 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         // 如果指定了题库ID，先获取该题库的题目ID列表
         if (queryDTO.getQuestionBankId() != null) {
             List<Long> questionIds = questionBankQuestionService.list(
-                    new LambdaQueryWrapper<com.mianshi.backend.model.entity.QuestionBankQuestion>()
-                            .eq(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionBankId,
-                                    queryDTO.getQuestionBankId())
-                            .select(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionId))
+                            new LambdaQueryWrapper<com.mianshi.backend.model.entity.QuestionBankQuestion>()
+                                    .eq(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionBankId,
+                                            queryDTO.getQuestionBankId())
+                                    .select(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionId))
                     .stream().map(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionId)
                     .collect(Collectors.toList());
 
             if (questionIds.isEmpty()) {
                 // 如果题库中没有题目，返回空结果
                 Page<QuestionVO> voPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize(), 0);
-                voPage.setRecords(List.of());
+                voPage.setRecords(Collections.emptyList());
                 return voPage;
             } else {
                 queryWrapper.in(Question::getId, questionIds);
@@ -136,7 +144,54 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         Page<Question> page = this.page(new Page<>(queryDTO.getCurrent(), queryDTO.getSize()), queryWrapper);
 
         Page<QuestionVO> voPage = new Page<>(page.getCurrent(), page.getSize(), page.getTotal());
-        voPage.setRecords(BeanUtil.copyToList(page.getRecords(), QuestionVO.class));
+        voPage.setRecords(page.getRecords().stream()
+                .map(this::toQuestionVO)
+                .collect(Collectors.toList()));
         return voPage;
+    }
+
+    private QuestionVO toQuestionVO(Question question) {
+        if (question == null) {
+            return null;
+        }
+        QuestionVO vo = new QuestionVO();
+        BeanUtil.copyProperties(question, vo, CopyOptions.create().setIgnoreProperties("tags"));
+        vo.setTags(deserializeTags(question.getTags()));
+        return vo;
+    }
+
+    private String serializeTags(List<String> tags) {
+        if (tags == null) {
+            return null;
+        }
+        List<String> normalized = tags.stream()
+                .map(tag -> tag == null ? null : tag.trim())
+                .filter(StringUtils::hasText)
+                .distinct()
+                .collect(Collectors.toList());
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return JSONUtil.toJsonStr(normalized);
+    }
+
+    private List<String> deserializeTags(String tagsJson) {
+        if (!StringUtils.hasText(tagsJson)) {
+            return Collections.emptyList();
+        }
+        try {
+            return JSONUtil.toList(JSONUtil.parseArray(tagsJson), String.class)
+                    .stream()
+                    .map(tag -> tag == null ? null : tag.trim())
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return Arrays.stream(tagsJson.split(","))
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .collect(Collectors.toList());
+        }
     }
 }

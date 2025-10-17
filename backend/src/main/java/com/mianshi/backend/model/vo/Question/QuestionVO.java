@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 题目 VO
@@ -17,7 +18,10 @@ public class QuestionVO {
 
     private String content;
 
-    private String tags;
+    /**
+     * 标签列表
+     */
+    private List<String> tags;
 
     private String answer;
 

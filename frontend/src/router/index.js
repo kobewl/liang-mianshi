@@ -9,6 +9,7 @@ import QuestionBankManage from '../views/QuestionBankManage.vue'
 import QuestionBankEdit from '../views/QuestionBankEdit.vue'
 import QuestionDetail from '../views/QuestionDetail.vue'
 import PersonalCenter from '../views/PersonalCenter.vue'
+import AdminDashboard from '../views/AdminDashboard.vue'
 import store from '../store'
 
 const routes = [
@@ -21,6 +22,12 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: Login
+  },
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: AdminDashboard,
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/register',

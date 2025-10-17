@@ -3,6 +3,7 @@ package com.mianshi.backend.model.dto.Question;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.List;
 
 /**
  * 题目添加 DTO
@@ -15,7 +16,10 @@ public class QuestionAddDTO {
 
     private String content;
 
-    private String tags;
+    /**
+     * 标签列表
+     */
+    private List<String> tags;
 
     private String answer;
 

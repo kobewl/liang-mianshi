@@ -125,6 +125,7 @@ const pagination = reactive({
 });
 
 const navItems = [
+  { key: 'admin-home', label: '首页', path: '/admin' },
   { key: 'question-manage', label: '题目列表', path: '/questions' },
   { key: 'question-bank-manage', label: '题库管理', path: '/question-banks' },
   { key: 'user-manage', label: '用户管理', path: '/users' }

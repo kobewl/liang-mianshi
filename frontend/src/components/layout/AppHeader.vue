@@ -95,7 +95,7 @@ const isAdmin = computed(() => (user.value?.userRole || '').toLowerCase() === 'a
 const defaultNavItems = computed(() => {
   if (isAdmin.value) {
     return [
-      { key: 'home', label: '首页', path: '/' },
+      { key: 'admin-home', label: '首页', path: '/admin' },
       { key: 'question-manage', label: '题目列表', path: '/questions' },
       { key: 'bank-manage', label: '题库管理', path: '/question-banks' },
       { key: 'user-manage', label: '用户管理', path: '/users' }
@@ -120,7 +120,11 @@ const avatarInitials = computed(() => {
 });
 
 const goHome = () => {
-  router.push('/');
+  if (isAdmin.value) {
+    router.push('/admin');
+  } else {
+    router.push('/');
+  }
 };
 
 const isActive = (item) => {

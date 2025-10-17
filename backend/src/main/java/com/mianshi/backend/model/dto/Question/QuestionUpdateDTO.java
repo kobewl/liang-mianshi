@@ -1,8 +1,8 @@
 package com.mianshi.backend.model.dto.Question;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
 
 /**
  * 题目更新 DTO
@@ -10,14 +10,14 @@ import lombok.Data;
 @Data
 public class QuestionUpdateDTO {
 
-    @NotNull(message = "id不能为空")
-    private Long id;
-
     private String title;
 
     private String content;
 
-    private String tags;
+    /**
+     * 标签列表
+     */
+    private List<String> tags;
 
     private String answer;
 

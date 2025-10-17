@@ -111,7 +111,8 @@ const handleLogin = async () => {
       const { token, ...userInfo } = response.data;
       store.dispatch('login', { token, user: userInfo });
       message.success('登录成功，欢迎回来！');
-      router.push('/');
+      const role = (userInfo?.userRole || '').toLowerCase();
+      router.push(role === 'admin' ? '/admin' : '/');
     } else {
       message.error(response.message || '登录失败，请检查账号和密码');
     }
