@@ -6,45 +6,86 @@
   >
     <a-spin :spinning="loading">
       <section v-if="isDetailView" class="detail-shell">
-        <div class="info-card glass-card" v-if="questionBank">
-          <div class="info-head">
-            <div>
-              <h2>{{ questionBank.title }}</h2>
-              <p>{{ questionBank.description || '这个题库还没有简介，快去补充一条吧。' }}</p>
-            </div>
-            <div class="info-meta">
+        <div class="bank-summary glass-card" v-if="questionBank">
+          <div class="bank-summary__icon">📚</div>
+          <div class="bank-summary__main">
+            <h2>{{ questionBank.title }}</h2>
+            <p>{{ questionBank.description || '这个题库还没有简介，快去补充一条吧~' }}</p>
+            <div class="bank-summary__meta">
               <span>题目数量：{{ detailQuestions.length }}</span>
               <span>创建时间：{{ formatDate(questionBank.createTime) }}</span>
               <span>最近更新：{{ formatDate(questionBank.updateTime) }}</span>
             </div>
           </div>
-          <div class="info-actions">
+          <div class="bank-summary__actions">
             <a-space>
+              <a-button
+                type="primary"
+                shape="round"
+                :disabled="!detailQuestions.length"
+                @click="router.push(`/question/${detailQuestions[0]?.id}`)"
+              >
+                开始刷题
+              </a-button>
               <a-button shape="round" @click="goBack">返回</a-button>
-              <a-button v-if="isAdmin" type="primary" shape="round" @click="router.push(`/question-banks/edit/${questionBank.id}`)">
+              <a-button
+                v-if="isAdmin"
+                shape="round"
+                @click="router.push(`/question-banks/edit/${questionBank.id}`)"
+              >
                 编辑题库
               </a-button>
             </a-space>
           </div>
         </div>
 
-        <div class="question-cards">
-          <a-empty v-if="!detailQuestions.length" description="题库中还没有题目" />
-          <a-card
-            v-for="question in detailQuestions"
-            :key="question.id"
-            class="question-card"
-            hoverable
-            @click="router.push(`/question/${question.id}`)"
-          >
-            <div class="question-card__head">
-              <h3>{{ question.title }}</h3>
-              <a-tag v-for="tag in normalizeTags(question.tags)" :key="tag" class="tag-pill">
-                {{ tag }}
-              </a-tag>
+        <div class="question-list-card glass-card">
+          <div class="question-list__head">
+            <div>
+              <h3>题目列表</h3>
+              <p>精选题目尽在此处，点击行即可查看详情并开始练习。</p>
             </div>
-            <p>{{ summarize(question.content) }}</p>
-          </a-card>
+            <span class="question-count">共 {{ detailQuestions.length }} 道</span>
+          </div>
+          <a-empty
+            v-if="!detailQuestions.length"
+            description="题库中还没有题目"
+          />
+          <div v-else class="question-list">
+            <div
+              v-for="question in detailQuestions"
+              :key="question.id"
+              class="question-row"
+              @click="router.push(`/question/${question.id}`)"
+            >
+              <div class="question-row__main">
+                <h4>{{ question.title }}</h4>
+                <p>{{ summarize(question.content) }}</p>
+                <div
+                  v-if="normalizeTags(question.tags).length"
+                  class="question-row__tags"
+                >
+                  <a-tag
+                    v-for="tag in normalizeTags(question.tags)"
+                    :key="tag"
+                    class="tag-pill"
+                  >
+                    {{ tag }}
+                  </a-tag>
+                </div>
+              </div>
+              <div class="question-row__meta">
+                <span
+                  :class="['question-difficulty', getDifficulty(question.difficulty).class]"
+                >
+                  {{ getDifficulty(question.difficulty).label }}
+                </span>
+                <span class="question-updated">
+                  更新于：{{ formatDate(question.updateTime || question.createTime) }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -142,7 +183,7 @@ import {
   deleteQuestionBank,
   getQuestionBankById
 } from '../api/questionBank';
-import { getQuestionList } from '../api/question';
+import { searchQuestionFromEs } from '../api/question';
 
 const store = useStore();
 const router = useRouter();
@@ -173,11 +214,7 @@ const isDetailView = computed(() => Boolean(route.params.id));
 
 const hero = computed(() => {
   if (isDetailView.value) {
-    return {
-      badge: '题库详情',
-      title: questionBank.value?.title || '题库加载中...',
-      subtitle: '查看题库下的题目，掌握更新情况与题库亮点。'
-    };
+    return null;
   }
   return {
     badge: '题库管理',
@@ -239,7 +276,7 @@ const fetchQuestionBankDetail = async (id) => {
 
 const fetchDetailQuestions = async (questionBankId) => {
   try {
-    const response = await getQuestionList({
+    const response = await searchQuestionFromEs({
       questionBankId,
       current: 1,
       size: 100
@@ -308,6 +345,20 @@ const normalizeTags = (tags) => {
   return tags.split(',').map((tag) => tag.trim()).filter(Boolean);
 };
 
+
+const difficultyLegend = {
+  easy: { label: '简单', class: 'difficulty--easy' },
+  medium: { label: '中等', class: 'difficulty--medium' },
+  hard: { label: '困难', class: 'difficulty--hard' },
+  default: { label: '未标记', class: 'difficulty--default' }
+};
+
+const getDifficulty = (value) => {
+  if (!value) return difficultyLegend.default;
+  const key = String(value).toLowerCase();
+  return difficultyLegend[key] || difficultyLegend.default;
+};
+
 const summarize = (text = '') => {
   if (!text) return '暂无题目描述，点击卡片查看详情。';
   const plain = text.replace(/<[^>]+>/g, '').replace(/\n/g, ' ');
@@ -352,73 +403,216 @@ onMounted(() => {
   gap: 28px;
 }
 
-.info-card {
-  padding: 32px;
+.bank-summary {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.info-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 24px;
+  padding: 24px 28px;
 }
 
-.info-head h2 {
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 12px;
+.bank-summary__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  font-size: 32px;
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.28));
 }
 
-.info-head p {
-  color: var(--text-secondary);
-  max-width: 520px;
-}
-
-.info-meta {
+.bank-summary__main {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+}
+
+.bank-summary__main h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bank-summary__main p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.bank-summary__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   font-size: 14px;
   color: var(--text-secondary);
 }
 
-.info-actions {
+.bank-summary__actions {
   display: flex;
-  justify-content: flex-end;
-}
-
-.question-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-}
-
-.question-card {
-  border-radius: 18px;
-  border: none;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: var(--shadow-soft);
-  transition: var(--transition-base);
-}
-
-.question-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-hover);
-}
-
-.question-card__head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
 }
 
+.question-list-card {
+  padding: 20px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.question-list__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.question-list__head h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.question-list__head p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.question-count {
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.question-list {
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.question-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.question-row:hover {
+  background: rgba(59, 130, 246, 0.06);
+  transform: translateY(-2px);
+}
+
+.question-row__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.question-row__main h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.question-row__main p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.question-row__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.question-row__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.question-difficulty {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--text-secondary);
+}
+
+.difficulty--default {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--text-secondary);
+}
+
+.difficulty--easy {
+  background: rgba(16, 185, 129, 0.18);
+  color: #0f766e;
+}
+
+.difficulty--medium {
+  background: rgba(250, 204, 21, 0.22);
+  color: #92400e;
+}
+
+.difficulty--hard {
+  background: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+}
+
+.question-updated {
+  font-size: 12px;
+  color: var(--text-tertiary, rgba(71, 85, 105, 0.85));
+}
+
+@media (max-width: 992px) {
+  .bank-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .bank-summary__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .question-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .question-row__meta {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .question-list-card {
+    padding: 18px 18px 10px;
+  }
+
+  .question-list__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .question-count {
+    align-self: flex-start;
+  }
+}
 .manage-shell {
   padding: 32px 32px 40px;
   display: flex;

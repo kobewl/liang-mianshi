@@ -5,6 +5,11 @@ export const getQuestionList = (params) => {
   return api.get('/question/page', { params });
 };
 
+// 从ES搜索题目列表
+export const searchQuestionFromEs = (params) => {
+  return api.get('/question/search/page/es', { params });
+};
+
 // 根据ID获取题目
 export const getQuestionById = (id) => {
   return api.get(`/question/${id}`);

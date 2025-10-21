@@ -15,7 +15,6 @@
           :key="item.key"
           type="text"
           class="nav-button"
-          :ghost="true"
           :disabled="item.disabled"
           :class="{ 'nav-button--active': isActive(item) }"
           @click="handleNav(item)"

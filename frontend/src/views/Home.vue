@@ -202,7 +202,8 @@ const formatDate = (value) => {
 };
 
 const handleNavClick = (item) => {
-  if (item.key === 'scroll-question-banks') {
+  const command = item?.event || item?.key;
+  if (command === 'scroll-question-banks') {
     questionBankSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 };

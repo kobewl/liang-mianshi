@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mianshi.backend.model.dto.Question.QuestionAddDTO;
 import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
 import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
+import com.mianshi.backend.model.entity.Question;
 import com.mianshi.backend.model.vo.Question.QuestionVO;
 import com.mianshi.backend.service.QuestionService;
 import com.mianshi.backend.model.vo.ApiResponse;
@@ -74,5 +75,26 @@ public class QuestionController {
         queryDTO.setUserId(userId);
         queryDTO.setQuestionBankId(questionBankId);
         return ApiResponse.success(questionService.pageQuestions(queryDTO));
+    }
+
+    @Operation(summary = "分页从 ES 里查询数据", description = "分页从 ES 里查询数据")
+    @GetMapping("/search/page/es")
+    public ApiResponse<Page<Question>> pageQuestionsFromEs(
+            @Parameter(description = "当前页") @RequestParam(defaultValue = "1") Long current,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "标题") @RequestParam(required = false) String title,
+            @Parameter(description = "标签列表") @RequestParam(required = false) String tags,
+            @Parameter(description = "题目难度") @RequestParam(required = false) Integer difficulty,
+            @Parameter(description = "创建用户ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "题库ID") @RequestParam(required = false) Long questionBankId) {
+        QuestionQueryDTO queryDTO = new QuestionQueryDTO();
+        queryDTO.setCurrent(current.intValue());
+        queryDTO.setSize(size.intValue());
+        queryDTO.setTitle(title);
+        queryDTO.setTags(tags);
+        queryDTO.setDifficulty(difficulty);
+        queryDTO.setUserId(userId);
+        queryDTO.setQuestionBankId(questionBankId);
+        return ApiResponse.success(questionService.searchFromEs(queryDTO));
     }
 }

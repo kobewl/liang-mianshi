@@ -3,11 +3,14 @@ package com.mianshi.backend.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.json.JSONUtil;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.mianshi.backend.mapper.QuestionMapper;
 import com.mianshi.backend.model.dto.Question.QuestionAddDTO;
+import com.mianshi.backend.model.dto.Question.QuestionEsDTO;
 import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
 import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
 import com.mianshi.backend.model.entity.Question;
@@ -15,6 +18,16 @@ import com.mianshi.backend.model.vo.Question.QuestionVO;
 import com.mianshi.backend.service.QuestionBankQuestionService;
 import com.mianshi.backend.service.QuestionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.HighlightQuery;
+import org.springframework.data.elasticsearch.core.query.highlight.Highlight;
+import org.springframework.data.elasticsearch.core.query.highlight.HighlightField;
+import org.springframework.data.elasticsearch.core.query.highlight.HighlightParameters;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -28,6 +41,7 @@ import java.util.stream.Collectors;
 public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> implements QuestionService {
 
     private final QuestionBankQuestionService questionBankQuestionService;
+    private final ElasticsearchTemplate elasticsearchTemplate;
 
     @Override
     public Long addQuestion(QuestionAddDTO questionAddDTO) {
@@ -165,6 +179,77 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                 .map(this::toQuestionVO)
                 .collect(Collectors.toList()));
         return voPage;
+    }
+
+    @Override
+    public Page<Question> searchFromEs(QuestionQueryDTO queryDTO) {
+
+        // ===== 1) 构建 BoolQuery=====
+        BoolQuery.Builder bool = new BoolQuery.Builder();
+        // ... filter / must / should / minimumShouldMatch 等
+
+        // ===== 2) 分页 + 排序 =====
+        int currentIdx = Math.max(0, queryDTO.getCurrent() - 1);
+        int size = Math.max(1, queryDTO.getSize());
+        Sort sort = StringUtils.hasText(queryDTO.getSortField())
+                ? Sort.by(("desc".equalsIgnoreCase(queryDTO.getSortOrder()) ? Sort.Direction.DESC : Sort.Direction.ASC),
+                queryDTO.getSortField())
+                : Sort.by(Sort.Direction.DESC, "createTime");
+
+        HighlightParameters hlParams = HighlightParameters.builder()
+                .withPreTags("<em>")
+                .withPostTags("</em>")
+                .withFragmentSize(120)
+                .withNumberOfFragments(1)
+                .build();
+
+        Highlight hl = new Highlight(
+                hlParams,  // 先 parameters
+                java.util.List.of(
+                        new HighlightField("title"),
+                        new HighlightField("content"),
+                        new HighlightField("answer")
+                )
+        );
+
+        HighlightQuery hlQuery = new HighlightQuery(hl, QuestionEsDTO.class);
+
+        // ===== 4) 组装查询 =====
+        NativeQuery query = NativeQuery.builder()
+                .withQuery(q -> q.bool(bool.build()))
+                .withPageable(PageRequest.of(currentIdx, size))
+                .withSort(sort)
+                .withHighlightQuery(hlQuery)   // ★ 开启高亮
+                .build();
+
+        // ===== 5) 执行查询 =====
+        SearchHits<QuestionEsDTO> hits = elasticsearchTemplate.search(query, QuestionEsDTO.class);
+
+        // ===== 6) 命中转换 + 高亮回填 =====
+        java.util.List<Question> records = new java.util.ArrayList<>();
+        for (SearchHit<QuestionEsDTO> hit : hits) {
+            QuestionEsDTO es = hit.getContent();
+
+            // 取高亮结果（每个字段可能有多段，常用第一段）
+            java.util.Map<String, java.util.List<String>> hlMap = hit.getHighlightFields();
+            if (hlMap != null && !hlMap.isEmpty()) {
+                es.setTitle(firstOrElse(hlMap.get("title"), es.getTitle()));
+                es.setContent(firstOrElse(hlMap.get("content"), es.getContent()));
+                es.setAnswer(firstOrElse(hlMap.get("answer"), es.getAnswer()));
+            }
+
+            records.add(QuestionEsDTO.dtoToObj(es));
+        }
+
+        // ===== 7) 封装为 MyBatis-Plus 的 Page =====
+        Page<Question> page = new Page<>(queryDTO.getCurrent(), size);
+        page.setTotal(hits.getTotalHits());
+        page.setRecords(records);
+        return page;
+    }
+
+    private static String firstOrElse(java.util.List<String> list, String fallback) {
+        return (list != null && !list.isEmpty() && StringUtils.hasText(list.get(0))) ? list.get(0) : fallback;
     }
 
     private QuestionVO toQuestionVO(Question question) {

@@ -20,4 +20,11 @@ public interface QuestionService extends IService<Question> {
     QuestionVO getQuestionById(Long id);
     
     Page<QuestionVO> pageQuestions(QuestionQueryDTO queryDTO);
+
+    /**
+     * 从es中搜索题目
+     * @param queryDTO
+     * @return
+     */
+    Page<Question> searchFromEs(QuestionQueryDTO queryDTO);
 }

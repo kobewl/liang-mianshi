@@ -27,4 +27,6 @@ public class QuestionQueryDTO {
     private String sortField;
 
     private String sortOrder = "asc";
+
+    private String searchText;
 }

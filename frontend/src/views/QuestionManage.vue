@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageLayout
     variant="admin"
     :nav-items="navItems"
@@ -114,7 +114,7 @@ import { reactive, ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import PageLayout from '../components/layout/PageLayout.vue';
-import { getQuestionList, deleteQuestion } from '../api/question';
+import { searchQuestionFromEs, deleteQuestion } from '../api/question';
 
 const router = useRouter();
 
@@ -180,7 +180,7 @@ const fetchQuestions = async () => {
       tags: (query.tags || []).join(','),
       difficulty: query.difficulty || undefined
     };
-    const response = await getQuestionList(params);
+    const response = await searchQuestionFromEs(params);
     if (response.code === 200) {
       questions.value = response.data?.records || [];
       pagination.total = response.data?.total || 0;
