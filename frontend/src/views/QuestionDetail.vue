@@ -19,12 +19,21 @@
         </nav>
 
         <div class="header-right">
-          <a-input-search
-            placeholder="搜索题目"
-            style="width: 200px"
+          <a-auto-complete
+            v-model:value="searchKeyword"
+            :options="searchSuggestions"
             class="search-input"
+            style="width: 260px"
             @search="handleSearch"
-          />
+            @select="handleSearchSelect"
+          >
+            <a-input-search
+              placeholder="搜索题目"
+              :loading="searchLoading"
+              allow-clear
+              @search="submitSearch"
+            />
+          </a-auto-complete>
           <a-dropdown v-if="user">
             <a-button type="text" class="user-btn">
               <span class="user-icon">👤</span>
@@ -62,13 +71,13 @@
         <div class="question-header" v-if="question">
           <div class="question-meta">
             <h1 class="question-title">{{ question.title }}</h1>
-            <div class="question-tags">
-              <a-tag v-for="tag in question.tags" :key="tag" color="blue">{{ tag }}</a-tag>
-            </div>
-            <div class="question-info">
+            <div class="question-meta-row">
               <span class="difficulty" :class="getDifficultyClass(question.difficulty)">
                 {{ getDifficultyText(question.difficulty) }}
               </span>
+              <div class="question-tags">
+                <a-tag v-for="tag in question.tags" :key="tag" color="blue">{{ tag }}</a-tag>
+              </div>
               <!-- 管理员可以看到创建时间，普通用户看不到 -->
               <span class="create-time" v-if="isAdmin">{{ formatDate(question.createTime) }}</span>
             </div>
@@ -220,11 +229,11 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { message } from 'ant-design-vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import { getQuestionById } from '../api/question';
+import { getQuestionById, searchQuestionFromEs } from '../api/question';
 import AppFooter from '../components/layout/AppFooter.vue';
 
 export default {
@@ -244,6 +253,9 @@ export default {
     const showAnswer = ref(false);
     const submitting = ref(false);
     const isFavorite = ref(false);
+    const searchKeyword = ref('');
+    const searchSuggestions = ref([]);
+    const searchLoading = ref(false);
 
     // 目录项
     const tocItems = ref([
@@ -407,8 +419,61 @@ export default {
     };
 
     // 搜索题目
-    const handleSearch = (value) => {
-      message.info(`搜索: ${value}`);
+    const fetchSearchResults = async (keyword) => {
+      const trimmed = (keyword || '').trim();
+      if (!trimmed) {
+        searchSuggestions.value = [];
+        searchLoading.value = false;
+        return [];
+      }
+      searchLoading.value = true;
+      try {
+        const response = await searchQuestionFromEs({
+          current: 1,
+          size: 5,
+          title: trimmed
+        });
+        if (response.code === 200) {
+          const records = response.data?.records || [];
+          searchSuggestions.value = records.map((item) => ({
+            value: String(item.id),
+            label: item.title
+          }));
+          return records;
+        }
+        message.error(response.message || '搜索题目失败');
+      } catch (error) {
+        console.error('搜索题目失败:', error);
+        message.error('搜索题目失败，请稍后再试');
+      } finally {
+        searchLoading.value = false;
+      }
+      searchSuggestions.value = [];
+      return [];
+    };
+
+    const handleSearch = async (value) => {
+      searchKeyword.value = value;
+      await fetchSearchResults(value);
+    };
+
+    const submitSearch = async () => {
+      const records = await fetchSearchResults(searchKeyword.value);
+      if (records.length) {
+        router.push(`/question/${records[0].id}`);
+        searchSuggestions.value = [];
+        searchKeyword.value = '';
+      } else if (searchKeyword.value.trim()) {
+        message.info('未找到相关题目');
+      }
+    };
+
+    const handleSearchSelect = (value) => {
+      if (value) {
+        router.push(`/question/${value}`);
+        searchSuggestions.value = [];
+        searchKeyword.value = '';
+      }
     };
 
     // 退出登录
@@ -446,6 +511,16 @@ export default {
         }
       }, 100);
     };
+
+    watch(
+      () => route.params.id,
+      (newId, oldId) => {
+        if (newId && newId !== oldId) {
+          fetchQuestionDetail(newId);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+    );
 
     onMounted(() => {
       const questionId = route.params.id;
@@ -487,7 +562,12 @@ export default {
       goToNextQuestion,
       goToQuestion,
       scrollToSection,
+      searchKeyword,
+      searchSuggestions,
+      searchLoading,
       handleSearch,
+      submitSearch,
+      handleSearchSelect,
       handleLogout,
       scrollToQuestionBank
     };
@@ -564,6 +644,13 @@ export default {
 .search-input :deep(.ant-input) {
   border-radius: 20px;
 }
+.search-input :deep(.ant-input-search-button) {
+  border-radius: 0 20px 20px 0;
+}
+.search-input :deep(.ant-select-selector) {
+  border-radius: 20px !important;
+  padding: 0;
+}
 
 .user-btn {
   display: flex;
@@ -620,10 +707,21 @@ export default {
   margin-bottom: 16px;
 }
 
-.question-info {
+.question-meta-row {
   display: flex;
-  gap: 16px;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.question-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.question-tags .ant-tag {
+  margin: 0;
 }
 
 .difficulty {

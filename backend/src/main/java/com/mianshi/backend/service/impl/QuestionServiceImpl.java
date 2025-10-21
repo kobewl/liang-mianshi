@@ -3,8 +3,9 @@ package com.mianshi.backend.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.json.JSONUtil;
-import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -31,6 +32,7 @@ import org.springframework.data.elasticsearch.core.query.highlight.HighlightPara
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -185,8 +187,74 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     public Page<Question> searchFromEs(QuestionQueryDTO queryDTO) {
 
         // ===== 1) 构建 BoolQuery=====
+        List<Query> mustQueries = new ArrayList<>();
+        List<Query> filterQueries = new ArrayList<>();
+
+        // 如果指定了题库 ID，则先获取关联的题目 ID，用于过滤
+        List<Long> scopedQuestionIds = null;
+        if (queryDTO.getQuestionBankId() != null) {
+            scopedQuestionIds = questionBankQuestionService.list(
+                            new LambdaQueryWrapper<com.mianshi.backend.model.entity.QuestionBankQuestion>()
+                                    .eq(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionBankId,
+                                            queryDTO.getQuestionBankId())
+                                    .select(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionId))
+                    .stream()
+                    .map(com.mianshi.backend.model.entity.QuestionBankQuestion::getQuestionId)
+                    .collect(Collectors.toList());
+
+            if (scopedQuestionIds.isEmpty()) {
+                Page<Question> emptyPage = new Page<>(queryDTO.getCurrent(), queryDTO.getSize(), 0);
+                emptyPage.setRecords(Collections.emptyList());
+                return emptyPage;
+            }
+            List<FieldValue> idValues = scopedQuestionIds.stream()
+                    .map(FieldValue::of)
+                    .collect(Collectors.toList());
+            filterQueries.add(Query.of(q -> q.terms(t -> t.field("id").terms(tf -> tf.value(idValues)))));
+        }
+
+        if (StringUtils.hasText(queryDTO.getSearchText())) {
+            mustQueries.add(Query.of(q -> q.multiMatch(mm -> mm
+                    .query(queryDTO.getSearchText())
+                    .fields("title^4", "content^2", "answer")
+            )));
+        }
+
+        if (StringUtils.hasText(queryDTO.getTitle())) {
+            mustQueries.add(Query.of(q -> q.matchPhrase(mp -> mp.field("title").query(queryDTO.getTitle()))));
+        }
+
+        if (StringUtils.hasText(queryDTO.getTags())) {
+            List<String> tags = Arrays.stream(queryDTO.getTags().split(","))
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (!tags.isEmpty()) {
+                List<FieldValue> tagValues = tags.stream().map(FieldValue::of).collect(Collectors.toList());
+                filterQueries.add(Query.of(q -> q.terms(t -> t.field("tags").terms(tf -> tf.value(tagValues)))));
+            }
+        }
+
+        if (queryDTO.getDifficulty() != null) {
+            filterQueries.add(Query.of(q -> q.term(t -> t.field("difficulty").value(queryDTO.getDifficulty()))));
+        }
+
+        if (queryDTO.getUserId() != null) {
+            filterQueries.add(Query.of(q -> q.term(t -> t.field("userId").value(queryDTO.getUserId()))));
+        }
+
+        if (mustQueries.isEmpty() && filterQueries.isEmpty()) {
+            mustQueries.add(Query.of(q -> q.matchAll(ma -> ma)));
+        }
+
         BoolQuery.Builder bool = new BoolQuery.Builder();
-        // ... filter / must / should / minimumShouldMatch 等
+        if (!mustQueries.isEmpty()) {
+            bool.must(mustQueries);
+        }
+        if (!filterQueries.isEmpty()) {
+            bool.filter(filterQueries);
+        }
 
         // ===== 2) 分页 + 排序 =====
         int currentIdx = Math.max(0, queryDTO.getCurrent() - 1);

@@ -10,11 +10,13 @@
           <div class="bank-summary__icon">📚</div>
           <div class="bank-summary__main">
             <h2>{{ questionBank.title }}</h2>
-            <p>{{ questionBank.description || '这个题库还没有简介，快去补充一条吧~' }}</p>
+            <p class="bank-summary__desc">
+              {{ questionBank.description || '这个题库还没有简介，快去补充一条吧~' }}
+            </p>
             <div class="bank-summary__meta">
-              <span>题目数量：{{ detailQuestions.length }}</span>
-              <span>创建时间：{{ formatDate(questionBank.createTime) }}</span>
-              <span>最近更新：{{ formatDate(questionBank.updateTime) }}</span>
+              <span class="meta-item">题目数量：{{ detailQuestions.length }}</span>
+              <span class="meta-item">创建时间：{{ formatDate(questionBank.createTime) }}</span>
+              <span class="meta-item">最近更新：{{ formatDate(questionBank.updateTime) }}</span>
             </div>
           </div>
           <div class="bank-summary__actions">
@@ -45,46 +47,65 @@
               <h3>题目列表</h3>
               <p>精选题目尽在此处，点击行即可查看详情并开始练习。</p>
             </div>
-            <span class="question-count">共 {{ detailQuestions.length }} 道</span>
+            <div class="question-list__controls">
+              <a-input-search
+                v-model:value="questionKeyword"
+                placeholder="搜索题目标题或内容"
+                allow-clear
+                :bordered="false"
+              />
+              <span class="question-count">
+                共 {{ filteredQuestions.length }}
+                <template v-if="hasQuestionFilter"> / {{ detailQuestions.length }}</template>
+                道
+              </span>
+            </div>
           </div>
           <a-empty
             v-if="!detailQuestions.length"
             description="题库中还没有题目"
           />
           <div v-else class="question-list">
-            <div
-              v-for="question in detailQuestions"
-              :key="question.id"
-              class="question-row"
-              @click="router.push(`/question/${question.id}`)"
-            >
-              <div class="question-row__main">
-                <h4>{{ question.title }}</h4>
-                <p>{{ summarize(question.content) }}</p>
-                <div
-                  v-if="normalizeTags(question.tags).length"
-                  class="question-row__tags"
-                >
-                  <a-tag
-                    v-for="tag in normalizeTags(question.tags)"
-                    :key="tag"
-                    class="tag-pill"
+            <template v-if="filteredQuestions.length">
+              <div
+                v-for="question in filteredQuestions"
+                :key="question.id"
+                class="question-row"
+                @click="router.push(`/question/${question.id}`)"
+              >
+                <div class="question-row__main">
+                  <h4>{{ question.title }}</h4>
+                  <p class="question-row__desc">{{ summarize(question.content) }}</p>
+                  <div
+                    v-if="normalizeTags(question.tags).length"
+                    class="question-row__tags"
                   >
-                    {{ tag }}
-                  </a-tag>
+                    <a-tag
+                      v-for="tag in normalizeTags(question.tags)"
+                      :key="tag"
+                      class="tag-pill"
+                    >
+                      {{ tag }}
+                    </a-tag>
+                  </div>
+                </div>
+                <div class="question-row__meta">
+                  <span
+                    :class="['question-difficulty', getDifficulty(question.difficulty).class]"
+                  >
+                    {{ getDifficulty(question.difficulty).label }}
+                  </span>
+                  <span class="question-updated">
+                    更新于：{{ formatDate(question.updateTime || question.createTime) }}
+                  </span>
                 </div>
               </div>
-              <div class="question-row__meta">
-                <span
-                  :class="['question-difficulty', getDifficulty(question.difficulty).class]"
-                >
-                  {{ getDifficulty(question.difficulty).label }}
-                </span>
-                <span class="question-updated">
-                  更新于：{{ formatDate(question.updateTime || question.createTime) }}
-                </span>
-              </div>
-            </div>
+            </template>
+            <a-empty
+              v-else
+              class="question-empty"
+              description="未找到匹配的题目"
+            />
           </div>
         </div>
       </section>
@@ -209,6 +230,7 @@ const query = reactive({
 
 const questionBank = ref(null);
 const detailQuestions = ref([]);
+const questionKeyword = ref('');
 
 const isDetailView = computed(() => Boolean(route.params.id));
 
@@ -256,10 +278,12 @@ const fetchQuestionBanks = async () => {
 
 const fetchQuestionBankDetail = async (id) => {
   loading.value = true;
+  detailQuestions.value = [];
   try {
     const response = await getQuestionBankById(id);
     if (response.code === 200) {
       questionBank.value = response.data;
+      questionKeyword.value = '';
       await fetchDetailQuestions(id);
     } else {
       message.error(response.message || '获取题库详情失败');
@@ -276,13 +300,19 @@ const fetchQuestionBankDetail = async (id) => {
 
 const fetchDetailQuestions = async (questionBankId) => {
   try {
+    const normalizedId = String(questionBankId).trim();
     const response = await searchQuestionFromEs({
-      questionBankId,
+      questionBankId: normalizedId,
       current: 1,
       size: 100
     });
     if (response.code === 200) {
-      detailQuestions.value = response.data?.records || [];
+      const records = response.data?.records || [];
+      const scoped = records.filter((item) => {
+        const candidate = item?.questionBankId ?? item?.bankId ?? item?.questionBank?.id;
+        return candidate != null && String(candidate) === normalizedId;
+      });
+      detailQuestions.value = scoped.length ? scoped : records;
     } else {
       message.error(response.message || '获取题库题目失败');
     }
@@ -365,6 +395,17 @@ const summarize = (text = '') => {
   return plain.length > 120 ? `${plain.slice(0, 120)}...` : plain;
 };
 
+const filteredQuestions = computed(() => {
+  const keyword = questionKeyword.value.trim().toLowerCase();
+  if (!keyword) return detailQuestions.value;
+  return detailQuestions.value.filter((item) => {
+    const source = `${item.title || ''} ${item.description || ''} ${item.content || ''}`.toLowerCase();
+    return source.includes(keyword);
+  });
+});
+
+const hasQuestionFilter = computed(() => questionKeyword.value.trim().length > 0);
+
 const handleNavClick = (item) => {
   if (item.path) {
     router.push(item.path);
@@ -383,6 +424,7 @@ watch(
     } else {
       questionBank.value = null;
       detailQuestions.value = [];
+      questionKeyword.value = '';
       fetchQuestionBanks();
     }
   },
@@ -406,143 +448,197 @@ onMounted(() => {
 .bank-summary {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 24px 28px;
+  gap: 20px;
+  padding: 18px 22px;
 }
 
 .bank-summary__icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
   display: grid;
   place-items: center;
-  font-size: 32px;
-  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.28));
+  font-size: 26px;
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.16);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.26));
 }
 
 .bank-summary__main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .bank-summary__main h2 {
-  font-size: 24px;
-  font-weight: 700;
   margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.bank-summary__main p {
+.bank-summary__desc {
   margin: 0;
   color: var(--text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .bank-summary__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 14px;
+  gap: 10px;
+  font-size: 13px;
   color: var(--text-secondary);
+}
+
+.meta-item {
+  padding: 4px 10px;
+  background: rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
 }
 
 .bank-summary__actions {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .question-list-card {
-  padding: 20px 24px 12px;
+  padding: 18px 20px 12px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .question-list__head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
+}
+
+.question-list__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.question-list__controls :deep(.ant-input-search) {
+  min-width: 220px;
+  border-radius: 18px;
+  background: rgba(240, 244, 255, 0.6);
+  padding: 2px 6px;
+}
+
+.question-list__controls :deep(.ant-input-affix-wrapper) {
+  background: transparent;
+}
+
+.question-list__controls :deep(.ant-input-search-button) {
+  border-radius: 0 16px 16px 0;
 }
 
 .question-list__head h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
 }
 
 .question-list__head p {
-  margin: 6px 0 0;
-  font-size: 14px;
+  margin: 4px 0 0;
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
 .question-count {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .question-list {
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.question-empty {
+  padding: 32px 0;
 }
 
 .question-row {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  padding: 18px 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.86);
   cursor: pointer;
   transition: var(--transition-base);
 }
 
 .question-row:hover {
-  background: rgba(59, 130, 246, 0.06);
   transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.32);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
 }
 
 .question-row__main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .question-row__main h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.question-row__main p {
+.question-row__desc {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .question-row__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+}
+
+.question-row__tags .tag-pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  margin: 0;
 }
 
 .question-row__meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
-  min-width: 160px;
+  gap: 6px;
+  min-width: 140px;
 }
 
 .question-difficulty {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   background: rgba(148, 163, 184, 0.18);
   color: var(--text-secondary);
@@ -569,7 +665,7 @@ onMounted(() => {
 }
 
 .question-updated {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary, rgba(71, 85, 105, 0.85));
 }
 
@@ -583,17 +679,19 @@ onMounted(() => {
   .bank-summary__actions {
     width: 100%;
     justify-content: flex-start;
+    gap: 8px;
   }
 
   .question-row {
     flex-direction: column;
     align-items: flex-start;
+    padding: 14px 14px;
   }
 
   .question-row__meta {
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: auto;
   }
 }
@@ -607,6 +705,17 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .question-list__controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .question-list__controls :deep(.ant-input-search) {
+    width: 100%;
   }
 
   .question-count {

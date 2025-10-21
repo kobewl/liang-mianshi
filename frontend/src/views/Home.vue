@@ -301,25 +301,42 @@ onMounted(() => {
 .question-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
+  gap: 18px;
 }
 
 .question-card {
   cursor: pointer;
-  border-radius: 20px;
+  border-radius: 18px;
   border: none;
-  padding: 24px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow-soft);
   transition: var(--transition-base);
+  min-height: 200px;
 }
 
 .question-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
+}
+
+.question-card h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.question-card p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-head {
@@ -329,19 +346,19 @@ onMounted(() => {
 }
 
 .card-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
-  font-size: 26px;
+  font-size: 22px;
   color: #fff;
 }
 
 .card-meta {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
