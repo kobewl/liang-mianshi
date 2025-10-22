@@ -27,6 +27,11 @@ public class AuthInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
+        // 放行 Druid 监控页（context-path 配置为 /api，这里要匹配完整路径）
+        if (path.startsWith("/api/druid/")) {
+            return true;
+        }
+
         // 放行登录和注册接口
         if ("/api/user/login".equals(path) && "POST".equals(method)) {
             return true;

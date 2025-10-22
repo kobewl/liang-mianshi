@@ -30,6 +30,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/swagger-resources/**", // Swagger 资源
                         "/v3/api-docs/**", // OpenAPI 文档
                         "/favicon.ico", // 网站图标
+                        "/druid/**",
                         "/error" // 错误页面
                 );
     }
