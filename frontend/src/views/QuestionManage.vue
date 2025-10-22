@@ -236,7 +236,8 @@ const hero = computed(() => ({
 const columns = [
   { title: '题目', dataIndex: 'title', key: 'title' },
   { title: '标签', dataIndex: 'tags', key: 'tags', width: 220 },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
+  { title: '难度', dataIndex: 'difficulty', key: 'difficulty', width: 100 },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
   { title: '操作', key: 'action', width: 140 }
 ];
 
@@ -424,13 +425,40 @@ const formatDifficulty = (value) => difficultyTextMap[value] || '中等';
 const normalizeTags = (tags) => {
   if (!tags) return [];
   if (Array.isArray(tags)) return tags;
-  return tags.split(',').map((tag) => tag.trim()).filter(Boolean);
+  const raw = String(tags).trim();
+  if (!raw) return [];
+
+  if (
+    (raw.startsWith('[') && raw.endsWith(']')) ||
+    (raw.startsWith('{') && raw.endsWith('}'))
+  ) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      if (parsed && Array.isArray(parsed.tags)) {
+        return parsed.tags;
+      }
+    } catch (error) {
+      console.warn('normalizeTags JSON parse failed:', error);
+    }
+  }
+
+  return raw
+    .split(/[,，\s]+/)
+    .map((tag) => tag.replace(/^['"]|['"]$/g, '').trim())
+    .filter(Boolean);
 };
 
 const formatDate = (value) => {
-  if (!value) return '刚刚';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '刚刚';
+  if (!value) return '--';
+  let date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const normalized = String(value).replace(' ', 'T');
+    date = new Date(normalized);
+  }
+  if (Number.isNaN(date.getTime())) return '--';
   return date.toLocaleString();
 };
 

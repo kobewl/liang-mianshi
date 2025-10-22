@@ -57,8 +57,15 @@
             hoverable
             @click="goToQuestionBank(bank.id)"
           >
-            <div class="card-head">
-              <div class="card-icon" :class="getIconClass(bank.title)">
+            <div class="card-media">
+              <img
+                v-if="hasCover(bank)"
+                :src="bank.picture"
+                alt="题库封面"
+                class="card-cover"
+                @error.stop="handleImageError(bank.id)"
+              />
+              <div v-else class="card-icon" :class="getIconClass(bank.title)">
                 <span>{{ getIcon(bank.title) }}</span>
               </div>
               <a-tag v-if="isHotBank(bank.title)" color="orange" class="tag-pill">热门</a-tag>
@@ -97,6 +104,7 @@ const loading = ref(false);
 const activeTab = ref('popular');
 const selectedTag = ref('全部');
 const questionBankSection = ref(null);
+const brokenImages = ref({});
 
 const categoryTags = [
   '全部', '热门', 'Java', '前端', '后端', '数据库', '算法', '计算机网络', '操作系统', 'Redis', '面经', 'AI'
@@ -189,6 +197,12 @@ const getIconClass = (title = '') => {
 };
 
 const isHotBank = (title = '') => title.includes('热门') || title.includes('HOT') || title.includes('星标');
+
+const hasCover = (bank) => Boolean(bank?.picture) && !brokenImages.value[bank.id];
+
+const handleImageError = (id) => {
+  brokenImages.value = { ...brokenImages.value, [id]: true };
+};
 
 const goToQuestionBank = (id) => {
   router.push(`/question-bank/${id}`);
@@ -339,10 +353,17 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
-.card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.card-media {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.card-cover {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 14px;
+  display: block;
 }
 
 .card-icon {
@@ -360,6 +381,15 @@ onMounted(() => {
   justify-content: space-between;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.tag-pill {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 0 10px;
 }
 
 .empty-state {

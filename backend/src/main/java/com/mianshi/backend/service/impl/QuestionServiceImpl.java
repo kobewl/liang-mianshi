@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -317,6 +318,25 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
             }
 
             records.add(QuestionEsDTO.dtoToObj(es));
+        }
+
+        if (!records.isEmpty()) {
+            Map<Long, Question> dbQuestionMap = this.listByIds(
+                    records.stream()
+                            .map(Question::getId)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList())
+            ).stream()
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toMap(Question::getId, q -> q));
+
+            records.forEach(record -> {
+                Question dbQuestion = dbQuestionMap.get(record.getId());
+                if (dbQuestion != null) {
+                    record.setCreateTime(dbQuestion.getCreateTime());
+                    record.setUpdateTime(dbQuestion.getUpdateTime());
+                }
+            });
         }
 
         // ===== 7) 封装为 MyBatis-Plus 的 Page =====

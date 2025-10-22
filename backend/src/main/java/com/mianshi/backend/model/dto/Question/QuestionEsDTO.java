@@ -12,6 +12,8 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 
@@ -105,6 +107,14 @@ public class QuestionEsDTO implements Serializable {
         List<String> tags = questionEsDTO.getTags();
         if (CollUtil.isNotEmpty(tags)) {
             question.setTags(JSONUtil.toJsonStr(tags));
+        }
+        Date createTime = questionEsDTO.getCreateTime();
+        if (createTime != null) {
+            question.setCreateTime(LocalDateTime.ofInstant(createTime.toInstant(), ZoneId.systemDefault()));
+        }
+        Date updateTime = questionEsDTO.getUpdateTime();
+        if (updateTime != null) {
+            question.setUpdateTime(LocalDateTime.ofInstant(updateTime.toInstant(), ZoneId.systemDefault()));
         }
         return question;
 
