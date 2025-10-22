@@ -8,6 +8,8 @@ import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
 import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
 import com.mianshi.backend.model.vo.Question.QuestionVO;
 
+import java.util.List;
+
 /**
  * 题目服务
  */
@@ -27,4 +29,19 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     Page<Question> searchFromEs(QuestionQueryDTO queryDTO);
+
+    /**
+     * 批量删除题目
+     */
+    boolean batchDeleteQuestions(List<Long> questionIds, Long operatorId);
+
+    /**
+     * 批量添加题目至题库
+     */
+    boolean batchAddQuestionsToRepo(List<Long> questionIds, Long repoId, Long operatorId);
+
+    /**
+     * 批量从题库移除题目
+     */
+    boolean batchRemoveQuestionsFromRepo(List<Long> questionIds, Long repoId, Long operatorId);
 }

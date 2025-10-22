@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * FullSyncQuestionToEs类是一个Spring组件，用于实现将问题数据同步到ElasticSearch搜索引擎的功能。
  * 该类实现了CommandLineRunner接口，确保在Spring Boot应用程序启动后自动执行同步操作。
  */
-@Component
+//@Component
 @Slf4j
 public class FullSyncQuestionToEs implements CommandLineRunner {
 

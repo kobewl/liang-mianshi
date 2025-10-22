@@ -25,6 +25,21 @@ export const deleteQuestion = (id) => {
   return api.delete(`/question/${id}`);
 };
 
+// 批量删除题目
+export const batchDeleteQuestions = (data) => {
+  return api.post('/question/batchDelete', data);
+};
+
+// 批量将题目添加到题库
+export const batchAddQuestionsToRepo = (data) => {
+  return api.post('/question/batchAddToRepo', data);
+};
+
+// 批量从题库移除题目
+export const batchRemoveQuestionsFromRepo = (data) => {
+  return api.post('/question/batchRemoveFromRepo', data);
+};
+
 // 更新题目
 export const updateQuestion = (id, data) => {
   return api.put(`/question/${id}`, data);

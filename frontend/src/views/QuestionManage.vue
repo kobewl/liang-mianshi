@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <PageLayout
     variant="admin"
     :nav-items="navItems"
@@ -59,10 +59,48 @@
         </a-row>
       </div>
 
+      <div class="batch-toolbar">
+        <div class="batch-summary">
+          <span>已选择 <strong>{{ selectedCount }}</strong> 道题目</span>
+          <a-button type="link" size="small" @click="clearSelection" :disabled="!selectedCount">
+            清空选择
+          </a-button>
+        </div>
+        <a-space>
+          <a-button
+            type="primary"
+            shape="round"
+            @click="openRepoModal('add')"
+            :disabled="!canBatchOperate || batchSubmitting"
+          >
+            批量加入题库
+          </a-button>
+          <a-button
+            shape="round"
+            @click="openRepoModal('remove')"
+            :disabled="!canBatchOperate || batchSubmitting"
+          >
+            批量移出题库
+          </a-button>
+          <a-popconfirm
+            title="确认删除选中的题目吗？"
+            ok-text="删除"
+            cancel-text="取消"
+            :ok-button-props="{ danger: true }"
+            @confirm="confirmBatchDelete"
+          >
+            <a-button danger shape="round" :disabled="!canBatchOperate" :loading="batchSubmitting">
+              批量删除
+            </a-button>
+          </a-popconfirm>
+        </a-space>
+      </div>
+
       <a-table
         :columns="columns"
         :data-source="questions"
-        :loading="loading"
+        :loading="tableLoading"
+        :row-selection="rowSelection"
         row-key="id"
         :pagination="pagination"
         @change="handleTableChange"
@@ -105,6 +143,30 @@
           </template>
         </template>
       </a-table>
+
+      <a-modal
+        v-model:open="repoModalVisible"
+        :title="repoModalTitle"
+        :confirm-loading="repoModalLoading"
+        ok-text="确认"
+        cancel-text="取消"
+        @ok="handleRepoConfirm"
+        @cancel="handleRepoCancel"
+      >
+        <a-spin :spinning="repoOptionsLoading">
+          <a-select
+            v-model:value="selectedRepoId"
+            show-search
+            placeholder="请选择题库"
+            style="width: 100%;"
+            :options="repoOptions"
+            :filter-option="repoFilterOption"
+          />
+          <p v-if="!repoOptionsLoading && !repoOptions.length" class="repo-empty-tip">
+            暂无题库，请先创建题库后再执行该操作。
+          </p>
+        </a-spin>
+      </a-modal>
     </section>
   </PageLayout>
 </template>
@@ -114,11 +176,19 @@ import { reactive, ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import PageLayout from '../components/layout/PageLayout.vue';
-import { searchQuestionFromEs, deleteQuestion } from '../api/question';
+import {
+  searchQuestionFromEs,
+  deleteQuestion,
+  batchDeleteQuestions,
+  batchAddQuestionsToRepo,
+  batchRemoveQuestionsFromRepo
+} from '../api/question';
+import { getQuestionBankList } from '../api/questionBank';
 
 const router = useRouter();
 
 const loading = ref(false);
+const batchSubmitting = ref(false);
 const questions = ref([]);
 
 const query = reactive({
@@ -133,7 +203,7 @@ const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
-  showTotal: (total) => `共 ${total} 条`
+  showTotal: (total) => '共 ' + total + ' 条'
 });
 
 const difficultyOptions = [
@@ -160,7 +230,7 @@ const navItems = [
 const hero = computed(() => ({
   badge: '题目管理',
   title: '集中管理你的知识资产',
-  subtitle: '按标签搜索、批量维护、查看详情，保持题库健康可持续。'
+  subtitle: '按标签搜索、批量维护、查看详情，保持题库健康可持续运行。'
 }));
 
 const columns = [
@@ -169,6 +239,32 @@ const columns = [
   { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
   { title: '操作', key: 'action', width: 140 }
 ];
+
+const selectedRowKeys = ref([]);
+const canBatchOperate = computed(() => selectedRowKeys.value.length > 0);
+const selectedCount = computed(() => selectedRowKeys.value.length);
+
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys) => {
+    selectedRowKeys.value = keys;
+  },
+  preserveSelectedRowKeys: true
+}));
+
+const tableLoading = computed(() => loading.value || batchSubmitting.value);
+
+const repoModalVisible = ref(false);
+const repoModalMode = ref('add');
+const repoModalLoading = ref(false);
+const repoOptionsLoading = ref(false);
+const repoOptions = ref([]);
+const selectedRepoId = ref(null);
+const repoModalTitle = computed(() =>
+  repoModalMode.value === 'add' ? '选择题库 - 批量加入' : '选择题库 - 批量移除'
+);
+const repoFilterOption = (input, option) =>
+  ((option && option.label) || '').toLowerCase().includes(input.toLowerCase());
 
 const fetchQuestions = async () => {
   loading.value = true;
@@ -182,8 +278,13 @@ const fetchQuestions = async () => {
     };
     const response = await searchQuestionFromEs(params);
     if (response.code === 200) {
-      questions.value = response.data?.records || [];
+      const records = response.data?.records || [];
+      questions.value = records;
       pagination.total = response.data?.total || 0;
+      const currentIdSet = new Set(records.map((item) => String(item.id)));
+      selectedRowKeys.value = selectedRowKeys.value.filter((key) =>
+        currentIdSet.has(String(key))
+      );
     } else {
       message.error(response.message || '获取题目列表失败');
     }
@@ -195,14 +296,41 @@ const fetchQuestions = async () => {
   }
 };
 
+const loadRepoOptions = async () => {
+  repoOptionsLoading.value = true;
+  try {
+    const response = await getQuestionBankList({ current: 1, size: 100 });
+    if (response.code === 200) {
+      const records = response.data?.records || [];
+      repoOptions.value = records.map((item) => ({
+        value: item.id,
+        label: item.title
+      }));
+    } else {
+      message.error(response.message || '获取题库列表失败');
+    }
+  } catch (error) {
+    console.error('获取题库列表失败:', error);
+    message.error('获取题库列表失败，请稍后再试');
+  } finally {
+    repoOptionsLoading.value = false;
+  }
+};
+
+const clearSelection = () => {
+  selectedRowKeys.value = [];
+};
+
 const refresh = () => {
   pagination.current = 1;
+  clearSelection();
   fetchQuestions();
 };
 
 const resetFilters = () => {
   query.title = '';
   query.tags = [];
+  query.difficulty = null;
   refresh();
 };
 
@@ -219,6 +347,76 @@ const handleDelete = (id) => async () => {
     console.error('删除题目错误:', error);
     message.error('删除失败，请稍后再试');
   }
+};
+
+const confirmBatchDelete = async () => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请先选择题目');
+    return;
+  }
+  batchSubmitting.value = true;
+  try {
+    const response = await batchDeleteQuestions({ questionIds: selectedRowKeys.value });
+    if (response.code === 200) {
+      message.success('批量删除成功');
+      clearSelection();
+      refresh();
+    } else {
+      message.error(response.message || '批量删除失败');
+    }
+  } catch (error) {
+    console.error('批量删除题目错误:', error);
+    message.error('批量删除失败，请稍后再试');
+  } finally {
+    batchSubmitting.value = false;
+  }
+};
+
+const openRepoModal = (mode) => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请先选择题目');
+    return;
+  }
+  repoModalMode.value = mode;
+  repoModalVisible.value = true;
+  selectedRepoId.value = null;
+  loadRepoOptions();
+};
+
+const handleRepoConfirm = async () => {
+  if (!selectedRepoId.value) {
+    message.warning('请选择题库');
+    return;
+  }
+  repoModalLoading.value = true;
+  try {
+    const payload = {
+      questionIds: selectedRowKeys.value,
+      repoId: selectedRepoId.value
+    };
+    const response =
+      repoModalMode.value === 'add'
+        ? await batchAddQuestionsToRepo(payload)
+        : await batchRemoveQuestionsFromRepo(payload);
+    if (response.code === 200) {
+      message.success(
+        repoModalMode.value === 'add' ? '批量加入题库成功' : '批量移除题库成功'
+      );
+      repoModalVisible.value = false;
+      clearSelection();
+    } else {
+      message.error(response.message || '操作失败');
+    }
+  } catch (error) {
+    console.error('批量题库操作失败:', error);
+    message.error('操作失败，请稍后再试');
+  } finally {
+    repoModalLoading.value = false;
+  }
+};
+
+const handleRepoCancel = () => {
+  repoModalVisible.value = false;
 };
 
 const formatDifficulty = (value) => difficultyTextMap[value] || '中等';
@@ -239,11 +437,12 @@ const formatDate = (value) => {
 const handleTableChange = (pager) => {
   pagination.current = pager.current;
   pagination.pageSize = pager.pageSize;
+  clearSelection();
   fetchQuestions();
 };
 
 const openDetail = (id) => {
-  router.push(`/question/${id}`);
+  router.push('/question/' + id);
 };
 
 const handleNavClick = (item) => {
@@ -293,6 +492,38 @@ onMounted(() => {
   font-size: 16px;
 }
 
+.batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  margin-top: 16px;
+}
+
+.batch-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.batch-summary strong {
+  color: var(--brand-primary, #2563eb);
+}
+
+.batch-summary :deep(.ant-btn-link) {
+  padding: 0;
+}
+
+.repo-empty-tip {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .title-cell {
   display: flex;
   flex-direction: column;
@@ -322,6 +553,12 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .batch-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
   .manage-shell {
     padding: 24px;
   }

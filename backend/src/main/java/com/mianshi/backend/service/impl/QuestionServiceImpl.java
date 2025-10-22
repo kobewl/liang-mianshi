@@ -15,10 +15,14 @@ import com.mianshi.backend.model.dto.Question.QuestionEsDTO;
 import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
 import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
 import com.mianshi.backend.model.entity.Question;
+import com.mianshi.backend.model.entity.QuestionBank;
+import com.mianshi.backend.model.entity.QuestionBankQuestion;
 import com.mianshi.backend.model.vo.Question.QuestionVO;
 import com.mianshi.backend.service.QuestionBankQuestionService;
+import com.mianshi.backend.service.QuestionBankService;
 import com.mianshi.backend.service.QuestionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
@@ -30,19 +34,25 @@ import org.springframework.data.elasticsearch.core.query.highlight.Highlight;
 import org.springframework.data.elasticsearch.core.query.highlight.HighlightField;
 import org.springframework.data.elasticsearch.core.query.highlight.HighlightParameters;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> implements QuestionService {
 
     private final QuestionBankQuestionService questionBankQuestionService;
+    private final QuestionBankService questionBankService;
     private final ElasticsearchTemplate elasticsearchTemplate;
 
     @Override
@@ -316,6 +326,100 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         return page;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchDeleteQuestions(List<Long> questionIds, Long operatorId) {
+        List<Long> normalizedIds = normalizeQuestionIds(questionIds);
+        if (normalizedIds.isEmpty()) {
+            throw new IllegalArgumentException("题目ID列表不能为空");
+        }
+        validateOperator(operatorId);
+        ensureQuestionsExist(normalizedIds);
+
+        questionBankQuestionService.remove(
+                new LambdaQueryWrapper<QuestionBankQuestion>()
+                        .in(QuestionBankQuestion::getQuestionId, normalizedIds)
+        );
+
+        if (!this.removeBatchByIds(normalizedIds)) {
+            throw new IllegalStateException("批量删除题目失败，请稍后再试");
+        }
+        log.info("operator {} batch deleted questions {}", operatorId, normalizedIds);
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchAddQuestionsToRepo(List<Long> questionIds, Long repoId, Long operatorId) {
+        List<Long> normalizedIds = normalizeQuestionIds(questionIds);
+        if (normalizedIds.isEmpty()) {
+            throw new IllegalArgumentException("题目ID列表不能为空");
+        }
+        validateOperator(operatorId);
+        QuestionBank questionBank = requireQuestionBank(repoId);
+        ensureQuestionsExist(normalizedIds);
+
+        Set<Long> existingQuestionIds = questionBankQuestionService.list(
+                        new LambdaQueryWrapper<QuestionBankQuestion>()
+                                .eq(QuestionBankQuestion::getQuestionBankId, questionBank.getId())
+                                .in(QuestionBankQuestion::getQuestionId, normalizedIds)
+                                .select(QuestionBankQuestion::getQuestionId))
+                .stream()
+                .map(QuestionBankQuestion::getQuestionId)
+                .collect(Collectors.toCollection(HashSet::new));
+
+        List<QuestionBankQuestion> relationsToSave = normalizedIds.stream()
+                .filter(id -> !existingQuestionIds.contains(id))
+                .map(id -> {
+                    QuestionBankQuestion relation = new QuestionBankQuestion();
+                    relation.setQuestionBankId(questionBank.getId());
+                    relation.setQuestionId(id);
+                    relation.setUserId(operatorId);
+                    return relation;
+                })
+                .collect(Collectors.toList());
+
+        if (!relationsToSave.isEmpty() && !questionBankQuestionService.saveBatch(relationsToSave, 200)) {
+            throw new IllegalStateException("批量添加题目到题库失败，请稍后再试");
+        }
+        log.info("operator {} added questions {} into repo {}", operatorId, normalizedIds, questionBank.getId());
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchRemoveQuestionsFromRepo(List<Long> questionIds, Long repoId, Long operatorId) {
+        List<Long> normalizedIds = normalizeQuestionIds(questionIds);
+        if (normalizedIds.isEmpty()) {
+            throw new IllegalArgumentException("题目ID列表不能为空");
+        }
+        validateOperator(operatorId);
+        QuestionBank questionBank = requireQuestionBank(repoId);
+        ensureQuestionsExist(normalizedIds);
+
+        List<QuestionBankQuestion> existingRelations = questionBankQuestionService.list(
+                new LambdaQueryWrapper<QuestionBankQuestion>()
+                        .eq(QuestionBankQuestion::getQuestionBankId, questionBank.getId())
+                        .in(QuestionBankQuestion::getQuestionId, normalizedIds)
+        );
+
+        if (existingRelations.isEmpty()) {
+            log.info("operator {} attempted to remove questions {} from repo {} but no relations found",
+                    operatorId, normalizedIds, questionBank.getId());
+            return true;
+        }
+
+        List<Long> relationIds = existingRelations.stream()
+                .map(QuestionBankQuestion::getId)
+                .collect(Collectors.toList());
+
+        if (!questionBankQuestionService.removeBatchByIds(relationIds)) {
+            throw new IllegalStateException("批量从题库移除题目失败，请稍后再试");
+        }
+        log.info("operator {} removed questions {} from repo {}", operatorId, normalizedIds, questionBank.getId());
+        return true;
+    }
+
     private static String firstOrElse(java.util.List<String> list, String fallback) {
         return (list != null && !list.isEmpty() && StringUtils.hasText(list.get(0))) ? list.get(0) : fallback;
     }
@@ -328,6 +432,50 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         BeanUtil.copyProperties(question, vo, CopyOptions.create().setIgnoreProperties("tags"));
         vo.setTags(deserializeTags(question.getTags()));
         return vo;
+    }
+
+    private void validateOperator(Long operatorId) {
+        if (operatorId == null || operatorId <= 0) {
+            throw new IllegalArgumentException("操作人ID无效");
+        }
+    }
+
+    private List<Long> normalizeQuestionIds(List<Long> questionIds) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return questionIds.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> id > 0)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private void ensureQuestionsExist(List<Long> questionIds) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            return;
+        }
+        Set<Long> existIds = this.listByIds(questionIds).stream()
+                .filter(Objects::nonNull)
+                .map(Question::getId)
+                .collect(Collectors.toSet());
+        if (existIds.size() != questionIds.size()) {
+            List<Long> missing = questionIds.stream()
+                    .filter(id -> !existIds.contains(id))
+                    .collect(Collectors.toList());
+            throw new IllegalArgumentException("以下题目不存在或已删除：" + missing);
+        }
+    }
+
+    private QuestionBank requireQuestionBank(Long repoId) {
+        if (repoId == null || repoId <= 0) {
+            throw new IllegalArgumentException("题库ID不能为空或无效");
+        }
+        QuestionBank questionBank = questionBankService.getById(repoId);
+        if (questionBank == null) {
+            throw new IllegalArgumentException("题库不存在或已删除：" + repoId);
+        }
+        return questionBank;
     }
 
     private String serializeTags(List<String> tags) {

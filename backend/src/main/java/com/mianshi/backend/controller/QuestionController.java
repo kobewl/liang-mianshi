@@ -2,6 +2,8 @@ package com.mianshi.backend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mianshi.backend.model.dto.Question.QuestionAddDTO;
+import com.mianshi.backend.model.dto.Question.QuestionBatchDeleteDTO;
+import com.mianshi.backend.model.dto.Question.QuestionBatchRepoDTO;
 import com.mianshi.backend.model.dto.Question.QuestionUpdateDTO;
 import com.mianshi.backend.model.dto.Question.QuestionQueryDTO;
 import com.mianshi.backend.model.entity.Question;
@@ -48,6 +50,36 @@ public class QuestionController {
     @DeleteMapping("/{id}")
     public ApiResponse<Boolean> deleteQuestion(@Parameter(description = "题目ID") @PathVariable Long id) {
         return ApiResponse.success(questionService.removeById(id));
+    }
+
+    @Operation(summary = "批量删除题目", description = "一次性删除多个选中的题目")
+    @PostMapping("/batchDelete")
+    public ApiResponse<Boolean> batchDeleteQuestions(@RequestAttribute("userId") Long userId,
+                                                     @Valid @RequestBody QuestionBatchDeleteDTO batchDeleteDTO) {
+        batchDeleteDTO.setOperatorId(userId);
+        return ApiResponse.success(
+                questionService.batchDeleteQuestions(batchDeleteDTO.getQuestionIds(), userId)
+        );
+    }
+
+    @Operation(summary = "批量添加题目到题库", description = "将多个选中的题目一次性加入指定题库")
+    @PostMapping("/batchAddToRepo")
+    public ApiResponse<Boolean> batchAddQuestionsToRepo(@RequestAttribute("userId") Long userId,
+                                                        @Valid @RequestBody QuestionBatchRepoDTO batchRepoDTO) {
+        batchRepoDTO.setOperatorId(userId);
+        return ApiResponse.success(
+                questionService.batchAddQuestionsToRepo(batchRepoDTO.getQuestionIds(), batchRepoDTO.getRepoId(), userId)
+        );
+    }
+
+    @Operation(summary = "批量从题库移除题目", description = "将多个选中的题目从指定题库中移除")
+    @PostMapping("/batchRemoveFromRepo")
+    public ApiResponse<Boolean> batchRemoveQuestionsFromRepo(@RequestAttribute("userId") Long userId,
+                                                             @Valid @RequestBody QuestionBatchRepoDTO batchRepoDTO) {
+        batchRepoDTO.setOperatorId(userId);
+        return ApiResponse.success(
+                questionService.batchRemoveQuestionsFromRepo(batchRepoDTO.getQuestionIds(), batchRepoDTO.getRepoId(), userId)
+        );
     }
 
     @Operation(summary = "获取题目详情", description = "根据 ID 获取题目详情")
