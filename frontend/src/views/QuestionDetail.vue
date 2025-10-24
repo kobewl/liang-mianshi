@@ -349,6 +349,11 @@ export default {
         .replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>')
         // 行内代码
         .replace(/`(.*?)`/gim, '<code>$1</code>')
+        // 图片
+        .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/gim, (_match, alt, src, title) => {
+          const titleAttr = title ? ` title="${title}"` : '';
+          return `<img src="${src}" alt="${alt || ''}"${titleAttr} loading="lazy" />`;
+        })
         // 链接
         .replace(/\[([^\]]+)\]\(([^\)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
         // 换行
@@ -838,6 +843,14 @@ export default {
 .markdown-content pre code {
   background: none;
   padding: 0;
+}
+
+.markdown-content img {
+  display: block;
+  max-width: 100%;
+  margin: 16px auto;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content blockquote {

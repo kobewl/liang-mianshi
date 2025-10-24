@@ -61,7 +61,7 @@
               v-model="questionForm.content"
               label="题目内容"
               description="支持 Markdown 语法、代码高亮与表格。"
-              :height="420"
+              :height="300"
             />
           </a-form-item>
 
@@ -70,7 +70,7 @@
               v-model="questionForm.answer"
               label="参考答案"
               description="可插入代码、关键点总结，帮助考生快速理解。"
-              :height="360"
+              :height="520"
             />
           </a-form-item>
 
@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { message } from 'ant-design-vue';
@@ -107,6 +107,12 @@ const store = useStore();
 const formRef = ref();
 const loading = ref(false);
 const saving = ref(false);
+const autoSaving = ref(false);
+const isDirty = ref(false);
+
+const AUTO_SAVE_INTERVAL = 10000;
+const AUTO_SAVE_MESSAGE_KEY = 'question-auto-save';
+let autoSaveTimer = null;
 
 const questionBanks = ref([]);
 
@@ -120,6 +126,14 @@ const questionForm = reactive({
   userId: null,
   selectedQuestionBanks: []
 });
+
+watch(
+  questionForm,
+  () => {
+    isDirty.value = true;
+  },
+  { deep: true }
+);
 
 const difficultyOptions = [
   { value: 1, label: '基础' },
@@ -200,6 +214,7 @@ const fetchQuestionDetail = async (id) => {
           ? data.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
           : []);
       questionForm.difficulty = data.difficulty ?? 1;
+      isDirty.value = false;
     } else {
       message.error(response.message || '获取题目详情失败');
       backToList();
@@ -217,66 +232,160 @@ const backToList = () => {
   router.push('/questions');
 };
 
-const handleSubmit = async () => {
-  try {
-    await formRef.value.validate();
+const getCurrentUserId = () => store.state.user?.id || store.state.user?.userId;
 
-    const userId = store.state.user?.id || store.state.user?.userId;
-    if (!userId) {
-      message.error('请先登录后再进行题目管理');
+const validateForm = async (auto = false) => {
+  if (auto) {
+    if (!questionForm.title?.trim()) {
+      return false;
+    }
+    if (!questionForm.content?.trim()) {
+      return false;
+    }
+    if (!questionForm.answer?.trim()) {
+      return false;
+    }
+    if (
+      !isEdit.value &&
+      (!Array.isArray(questionForm.selectedQuestionBanks) ||
+        questionForm.selectedQuestionBanks.length === 0)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  if (!formRef.value) {
+    return false;
+  }
+
+  await formRef.value.validate();
+  return true;
+};
+
+const performSave = async ({ auto = false } = {}) => {
+  if (auto) {
+    if (autoSaving.value || saving.value || !isDirty.value) {
       return;
     }
+  } else if (saving.value) {
+    return;
+  }
 
-    const payload = {
-      title: questionForm.title,
-      content: questionForm.content,
-      answer: questionForm.answer,
-      tags: (questionForm.tags || []).map((tag) => tag.trim()).filter(Boolean),
-      difficulty: questionForm.difficulty,
-      userId
-    };
+  const userId = getCurrentUserId();
+  if (!userId) {
+    if (!auto) {
+      message.error('?????????????');
+    }
+    return;
+  }
+  questionForm.userId = userId;
 
-    saving.value = true;
+  let formValid = false;
+  try {
+    formValid = await validateForm(auto);
+  } catch (error) {
+    if (error?.errorFields) {
+      return;
+    }
+    console.error('??????:', error);
+    if (!auto) {
+      message.error('????????????');
+    }
+    return;
+  }
+
+  if (!formValid) {
+    return;
+  }
+
+  const payload = {
+    title: questionForm.title,
+    content: questionForm.content,
+    answer: questionForm.answer,
+    tags: (questionForm.tags || []).map((tag) => tag.trim()).filter(Boolean),
+    difficulty: questionForm.difficulty,
+    userId
+  };
+
+  const stateRef = auto ? autoSaving : saving;
+  stateRef.value = true;
+
+  try {
+    const shouldUpdate = Boolean(questionForm.id || isEdit.value);
+    const targetId = questionForm.id || route.params.id;
+
     let response;
-    if (isEdit.value) {
-      response = await updateQuestion(questionForm.id, payload);
+    if (shouldUpdate && targetId) {
+      response = await updateQuestion(targetId, payload);
     } else {
       response = await addQuestion(payload);
     }
 
     if (response.code === 200) {
-      if (!isEdit.value && questionForm.selectedQuestionBanks.length > 0) {
-        const questionId = response.data;
+      const persistedId = questionForm.id || response.data;
+      questionForm.id = persistedId;
+      isDirty.value = false;
+
+      if (auto) {
+        message.success({ content: '?????', key: AUTO_SAVE_MESSAGE_KEY, duration: 1.2 });
+        return;
+      }
+
+      if (!isEdit.value && questionForm.selectedQuestionBanks.length > 0 && persistedId) {
         try {
           await Promise.all(
             questionForm.selectedQuestionBanks.map((questionBankId) =>
               addQuestionBankQuestion({
                 questionBankId,
-                questionId,
+                questionId: persistedId,
                 userId
               })
             )
           );
-          message.success('题目创建成功，已同步关联题库');
+          message.success('??????????????');
         } catch (error) {
-          console.error('题库关联失败:', error);
-          message.warning('题目创建成功，但题库关联失败');
+          console.error('??????:', error);
+          message.warning('??????????????');
         }
       } else {
-        message.success(isEdit.value ? '题目更新成功' : '题目创建成功');
+        message.success(shouldUpdate ? '??????' : '??????');
       }
       backToList();
-    } else {
-      message.error(response.message || (isEdit.value ? '更新失败' : '创建失败'));
+    } else if (!auto) {
+      message.error(
+        response.message || (Boolean(questionForm.id || isEdit.value) ? '????' : '????')
+      );
     }
   } catch (error) {
-    if (error?.errorFields) {
-      return;
+    console.error(auto ? '??????:' : '????:', error);
+    if (!auto) {
+      message.error('??????????');
     }
-    console.error('提交错误:', error);
-    message.error('提交失败，请稍后再试');
   } finally {
-    saving.value = false;
+    stateRef.value = false;
+  }
+};
+
+const handleSubmit = async () => {
+  await performSave({ auto: false });
+};
+
+const handleAutoSave = () => {
+  performSave({ auto: true });
+};
+
+const startAutoSave = () => {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+  }
+  autoSaveTimer = setInterval(handleAutoSave, AUTO_SAVE_INTERVAL);
+};
+
+const stopAutoSave = () => {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+    autoSaveTimer = null;
   }
 };
 
@@ -287,19 +396,29 @@ const handleNavClick = (item) => {
 };
 
 onMounted(async () => {
-  const userId = store.state.user?.id || store.state.user?.userId;
+  const userId = getCurrentUserId();
   if (userId) {
     questionForm.userId = userId;
   }
-  if (isEdit.value) {
-    await fetchQuestionDetail(route.params.id);
-  } else {
-    await fetchQuestionBanks();
-    const questionBankId = route.query.questionBankId;
-    if (questionBankId) {
-      questionForm.selectedQuestionBanks = [Number(questionBankId)];
+
+  try {
+    if (isEdit.value) {
+      await fetchQuestionDetail(route.params.id);
+    } else {
+      await fetchQuestionBanks();
+      const questionBankId = route.query.questionBankId;
+      if (questionBankId) {
+        questionForm.selectedQuestionBanks = [Number(questionBankId)];
+      }
     }
+  } finally {
+    isDirty.value = false;
+    startAutoSave();
   }
+});
+
+onBeforeUnmount(() => {
+  stopAutoSave();
 });
 </script>
 
